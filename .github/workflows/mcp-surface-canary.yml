@@ -1,0 +1,138 @@
+name: mcp-surface-canary
+
+on:
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "src/**"
+      - "scripts/integration_matrix_check.py"
+      - "scripts/integration_matrix_check.sh"
+      - "scripts/run_canary_parity.sh"
+      - "scripts/ci_parity_readiness_report.py"
+      - "fixtures/integration_matrix_v1/**"
+      - ".github/workflows/mcp-surface-canary.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "src/**"
+      - "scripts/integration_matrix_check.py"
+      - "scripts/integration_matrix_check.sh"
+      - "scripts/run_canary_parity.sh"
+      - "scripts/ci_parity_readiness_report.py"
+      - "fixtures/integration_matrix_v1/**"
+      - ".github/workflows/mcp-surface-canary.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mcp-surface-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MCP_PROBE_REPOSITORY: ${{ vars.MCP_PROBE_REPOSITORY }}
+      MCP_PROBE_REF: ${{ vars.MCP_PROBE_REF || 'main' }}
+      INTEGRATION_MATRIX_PRINT_TOP_FAILURES: "5"
+      INTEGRATION_MATRIX_COMPOSE_BUILD_POLICY: "auto"
+      CI_PARITY_READINESS_MIN_RUNS: "1"
+      CI_PARITY_READINESS_MAX_GATE_FAILURE_RATE_PCT: "5"
+      CI_PARITY_READINESS_MAX_INFRA_FAILURE_RATE_PCT: "10"
+      CI_PARITY_READINESS_MAX_MEDIAN_DURATION_SEC: "900"
+      CI_PARITY_READINESS_MIN_COMPOSE_REUSE_RATE_PCT: "20"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect optional mcp-probe repository
+        id: probe_gate
+        run: |
+          set -euo pipefail
+          if [ -n "${MCP_PROBE_REPOSITORY}" ]; then
+            echo "available=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "available=false" >> "${GITHUB_OUTPUT}"
+            echo "Skipping mcp-surface-canary: set MCP_PROBE_REPOSITORY repository variable to enable it." >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Checkout mcp-probe dependency workspace
+        if: steps.probe_gate.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p ../../tools
+          if [ ! -d ../../tools/mcp-probe/.git ]; then
+            git clone "https://github.com/${MCP_PROBE_REPOSITORY}.git" ../../tools/mcp-probe
+          fi
+          git -C ../../tools/mcp-probe fetch --depth 1 origin "${MCP_PROBE_REF}"
+          git -C ../../tools/mcp-probe checkout --detach FETCH_HEAD
+          echo "mcp-probe ref: $(git -C ../../tools/mcp-probe rev-parse HEAD)"
+
+      - name: Install Rust toolchain
+        if: steps.probe_gate.outputs.available == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        if: steps.probe_gate.outputs.available == 'true'
+        uses: swatinem/rust-cache@v2
+        with:
+          shared-key: mcp-surface-${{ runner.os }}
+          workspaces: |
+            . -> target
+            ../../tools/mcp-probe/rust -> target
+
+      - name: Build postgres-mcp debug server
+        if: steps.probe_gate.outputs.available == 'true'
+        run: cargo build --quiet
+
+      - name: Capture tool surface fingerprint
+        if: steps.probe_gate.outputs.available == 'true'
+        run: |
+          ./target/debug/postgres-mcp --help
+          ./target/debug/postgres-mcp --print-tools
+          ./target/debug/postgres-mcp --print-tool-schema > .tmp-tool-schema.json
+
+      - name: Build mcp-probe release binary for canary checks
+        if: steps.probe_gate.outputs.available == 'true'
+        working-directory: ../../tools/mcp-probe/rust
+        run: cargo build --release --quiet
+
+      - name: Run MCP surface canary integration matrix
+        if: steps.probe_gate.outputs.available == 'true'
+        run: ./scripts/run_canary_parity.sh
+
+      - name: Build CI parity readiness report
+        if: always() && steps.probe_gate.outputs.available == 'true'
+        run: |
+          python3 ./scripts/ci_parity_readiness_report.py \
+            --report .tmp/integration_matrix_v1/integration_matrix_report.json \
+            --out-json .tmp/integration_matrix_v1/ci_parity_readiness_report.json \
+            --out-md .tmp/integration_matrix_v1/ci_parity_readiness_report.md \
+            --min-runs "${CI_PARITY_READINESS_MIN_RUNS}" \
+            --max-gate-failure-rate-pct "${CI_PARITY_READINESS_MAX_GATE_FAILURE_RATE_PCT}" \
+            --max-infra-failure-rate-pct "${CI_PARITY_READINESS_MAX_INFRA_FAILURE_RATE_PCT}" \
+            --max-median-duration-sec "${CI_PARITY_READINESS_MAX_MEDIAN_DURATION_SEC}" \
+            --min-compose-reuse-rate-pct "${CI_PARITY_READINESS_MIN_COMPOSE_REUSE_RATE_PCT}"
+
+      - name: Publish readiness summary
+        if: always()
+        run: |
+          if [ -f .tmp/integration_matrix_v1/ci_parity_readiness_report.md ]; then
+            cat .tmp/integration_matrix_v1/ci_parity_readiness_report.md >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload integration matrix report artifact
+        if: always() && steps.probe_gate.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-matrix-report
+          path: |
+            .tmp/integration_matrix_v1/integration_matrix_report.json
+            .tmp/integration_matrix_v1/ci_parity_readiness_report.json
+            .tmp/integration_matrix_v1/ci_parity_readiness_report.md
+            .tmp-tool-schema.json
+          if-no-files-found: warn

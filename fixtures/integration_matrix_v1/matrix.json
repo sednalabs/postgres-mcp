@@ -1,0 +1,400 @@
+{
+  "version": 1,
+  "targets": [
+    {
+      "id": "pg15_full",
+      "label": "PostgreSQL 15 with pg_stat_statements+hypopg active",
+      "required": true,
+      "postgres_version": "15",
+      "extension_state": "full",
+      "database_uri_env": "MATRIX_DB_URI_PG15_FULL",
+      "tags": [
+        "version:15",
+        "state:full",
+        "extensions:hypopg-on",
+        "extensions:pgstat-on"
+      ]
+    },
+    {
+      "id": "pg18_full",
+      "label": "PostgreSQL 18 with pg_stat_statements+hypopg active",
+      "required": true,
+      "postgres_version": "18",
+      "extension_state": "full",
+      "database_uri_env": "MATRIX_DB_URI_PG18_FULL",
+      "tags": [
+        "version:18",
+        "state:full",
+        "extensions:hypopg-on",
+        "extensions:pgstat-on"
+      ]
+    },
+    {
+      "id": "pg18_full_limited",
+      "label": "PostgreSQL 18 limited role on full-extension target",
+      "required": true,
+      "postgres_version": "18",
+      "extension_state": "full_limited",
+      "database_uri_env": "MATRIX_DB_URI_PG18_FULL_LIMITED",
+      "tags": [
+        "version:18",
+        "state:full-limited",
+        "role:limited",
+        "extensions:hypopg-on",
+        "extensions:pgstat-on"
+      ]
+    },
+    {
+      "id": "pg18_missing_ext",
+      "label": "PostgreSQL 18 with extensions available but not installed",
+      "required": true,
+      "postgres_version": "18",
+      "extension_state": "missing",
+      "database_uri_env": "MATRIX_DB_URI_PG18_MISSING_EXT",
+      "tags": [
+        "version:18",
+        "state:missing",
+        "extensions:hypopg-off",
+        "extensions:pgstat-off"
+      ]
+    },
+    {
+      "id": "pg18_pgstat_degraded",
+      "label": "PostgreSQL 18 with pg_stat_statements installed but preload missing",
+      "required": true,
+      "postgres_version": "18",
+      "extension_state": "degraded",
+      "database_uri_env": "MATRIX_DB_URI_PG18_PGSTAT_DEGRADED",
+      "tags": [
+        "version:18",
+        "state:degraded",
+        "extensions:hypopg-on",
+        "extensions:pgstat-degraded"
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "smoke_list_schemas_full",
+      "description": "Full-extension targets return schema inventory",
+      "severity": "high",
+      "tool": "list_schemas",
+      "input": {},
+      "target_tags_all": ["state:full"],
+      "expect": {
+        "step_status": "ok",
+        "payload_kind": "list",
+        "min_items": 1
+      }
+    },
+    {
+      "id": "smoke_get_top_queries_full",
+      "description": "Full-extension targets execute top queries path",
+      "severity": "medium",
+      "tool": "get_top_queries",
+      "input": {
+        "sort_by": "mean_time",
+        "limit": 5
+      },
+      "target_tags_all": ["state:full"],
+      "expect": {
+        "step_status": "ok",
+        "payload_kind": "list"
+      }
+    },
+    {
+      "id": "extension_missing_pgstat_top_queries",
+      "description": "Missing pg_stat_statements reports explicit extension-unavailable contract",
+      "severity": "high",
+      "tool": "get_top_queries",
+      "input": {
+        "sort_by": "total_time",
+        "limit": 3
+      },
+      "target_ids": ["pg18_missing_ext"],
+      "expect": {
+        "step_status": "ok",
+        "payload_kind": "object",
+        "code_equals": "EXTENSION_UNAVAILABLE",
+        "reason_equals": "top_queries_source_unavailable",
+        "extension_equals": "pg_stat_statements",
+        "message_contains_any": [
+          "CREATE EXTENSION pg_stat_statements",
+          "not available"
+        ],
+        "error_contains_any": [
+          "pg_stat_statements",
+          "required"
+        ],
+        "redact_database_uri": true
+      }
+    },
+    {
+      "id": "extension_missing_hypopg_explain",
+      "description": "Missing hypopg reports explicit extension-unavailable contract",
+      "severity": "high",
+      "tool": "explain_query",
+      "input": {
+        "sql": "SELECT * FROM public.matrix_seed WHERE id = 1",
+        "hypothetical_indexes": [
+          {
+            "table": "public.matrix_seed",
+            "columns": ["id"],
+            "using": "btree"
+          }
+        ]
+      },
+      "target_ids": ["pg18_missing_ext"],
+      "expect": {
+        "step_status": "ok",
+        "payload_kind": "object",
+        "code_equals": "EXTENSION_UNAVAILABLE",
+        "reason_equals": "hypothetical_indexing_unavailable",
+        "extension_equals": "hypopg",
+        "message_contains_any": [
+          "CREATE EXTENSION hypopg",
+          "not available"
+        ],
+        "error_contains_any": [
+          "hypopg"
+        ],
+        "redact_database_uri": true
+      }
+    },
+    {
+      "id": "extension_degraded_pgstat_runtime",
+      "description": "Degraded pg_stat_statements reports runtime diagnostic",
+      "severity": "high",
+      "tool": "get_top_queries",
+      "input": {
+        "sort_by": "resources",
+        "limit": 2
+      },
+      "target_ids": ["pg18_pgstat_degraded"],
+      "expect": {
+        "step_status": "ok",
+        "payload_kind": "object",
+        "error_contains_any": [
+          "shared_preload_libraries",
+          "pg_stat_statements",
+          "query execution failed"
+        ],
+        "redact_database_uri": true
+      }
+    },
+    {
+      "id": "permission_error_execute_sql",
+      "description": "Permission denied path is surfaced with actionable context",
+      "severity": "high",
+      "tool": "execute_sql",
+      "input": {
+        "sql": "SELECT rolname FROM pg_authid LIMIT 1"
+      },
+      "target_ids": ["pg18_full_limited"],
+      "expect": {
+        "step_status": "ok",
+        "payload_kind": "object",
+        "error_contains_any": [
+          "permission denied",
+          "pg_authid"
+        ],
+        "redact_database_uri": true
+      }
+    },
+    {
+      "id": "auth_failure_redaction",
+      "description": "Auth failures never leak credentials",
+      "severity": "high",
+      "tool": "list_schemas",
+      "input": {},
+      "target_ids": ["pg18_full"],
+      "uri_mutation": "bad_password",
+      "expect": {
+        "step_status": "ok",
+        "payload_kind": "object",
+        "error_contains_any": [
+          "failed to connect to postgresql",
+          "authentication failed",
+          "password"
+        ],
+        "redact_database_uri": true
+      }
+    },
+    {
+      "id": "network_timeout_redaction",
+      "description": "Network failure path remains redacted and diagnostic",
+      "severity": "high",
+      "tool": "list_schemas",
+      "input": {},
+      "target_ids": ["pg18_full"],
+      "uri_mutation": "network_timeout",
+      "expect": {
+        "step_status": "ok",
+        "payload_kind": "object",
+        "error_contains_any": [
+          "failed to connect to postgresql",
+          "timed out",
+          "timeout",
+          "connection refused",
+          "network is unreachable",
+          "no route to host"
+        ],
+        "redact_database_uri": true
+      }
+    },
+    {
+      "id": "execute_sql_default_cap_and_pagination",
+      "description": "execute_sql returns v2 metadata with default cap and cursor",
+      "severity": "high",
+      "tool": "execute_sql",
+      "input": {
+        "sql": "SELECT generate_series(1, 260) AS id",
+        "metadata_verbosity": "standard"
+      },
+      "target_ids": ["pg18_full"],
+      "expect": {
+        "step_status": "ok",
+        "envelope_kind": "object",
+        "payload_kind": "list",
+        "meta": {
+          "returned_rows": 200,
+          "truncated": true,
+          "row_count_total": 200,
+          "query_hints": [],
+          "summary_only": false
+        },
+        "meta_required": [
+          "query_hash",
+          "next_cursor",
+          "returned_rows",
+          "row_count_total",
+          "truncated",
+          "query_hints",
+          "summary_only"
+        ],
+        "meta_non_empty": [
+          "query_hash",
+          "next_cursor"
+        ]
+      }
+    },
+    {
+      "id": "execute_sql_max_rows_override",
+      "description": "execute_sql honors max_rows override on v2 responses",
+      "severity": "high",
+      "tool": "execute_sql",
+      "input": {
+        "sql": "SELECT generate_series(1, 260) AS id",
+        "max_rows": 3,
+        "metadata_verbosity": "standard"
+      },
+      "target_ids": ["pg18_full"],
+      "expect": {
+        "step_status": "ok",
+        "envelope_kind": "object",
+        "payload_kind": "list",
+        "meta": {
+          "returned_rows": 3,
+          "truncated": true,
+          "row_count_total": 3,
+          "query_hints": [],
+          "summary_only": false
+        },
+        "meta_required": [
+          "query_hash",
+          "next_cursor",
+          "returned_rows",
+          "row_count_total",
+          "truncated",
+          "query_hints",
+          "summary_only"
+        ],
+        "meta_non_empty": [
+          "query_hash",
+          "next_cursor"
+        ]
+      }
+    },
+    {
+      "id": "execute_sql_unbounded_hint",
+      "description": "execute_sql includes unbounded-query hint for select * without limit",
+      "severity": "high",
+      "tool": "execute_sql",
+      "input": {
+        "sql": "SELECT * FROM public.matrix_seed",
+        "metadata_verbosity": "standard"
+      },
+      "target_ids": ["pg18_full"],
+      "expect": {
+        "step_status": "ok",
+        "envelope_kind": "object",
+        "payload_kind": "list",
+        "meta": {
+          "returned_rows": 1,
+          "truncated": false,
+          "row_count_total": 1,
+          "summary_only": false,
+          "query_hints": [
+            "Query appears unbounded (SELECT * without LIMIT). Consider adding LIMIT, selecting specific columns, or using aggregate/scalar output."
+          ]
+        },
+        "meta_required": [
+          "query_hints",
+          "summary_only",
+          "truncated",
+          "returned_rows"
+        ]
+      }
+    },
+    {
+      "id": "execute_sql_summary_only",
+      "description": "summary_only suppresses data payload but keeps v2 metadata",
+      "severity": "high",
+      "tool": "execute_sql",
+      "input": {
+        "sql": "SELECT generate_series(1, 260) AS id",
+        "max_rows": 4,
+        "summary_only": true,
+        "metadata_verbosity": "standard"
+      },
+      "target_ids": ["pg18_full"],
+      "expect": {
+        "step_status": "ok",
+        "envelope_kind": "object",
+        "payload_kind": "null",
+        "data_is_null": true,
+        "meta": {
+          "returned_rows": 4,
+          "truncated": true,
+          "row_count_total": 4,
+          "query_hints": [],
+          "summary_only": true
+        },
+        "meta_required": [
+          "summary_only",
+          "returned_rows",
+          "row_count_total",
+          "truncated",
+          "query_hints"
+        ]
+      }
+    },
+    {
+      "id": "execute_sql_cursor_mismatch",
+      "description": "Invalid pagination cursor returns explicit invalid-cursor error",
+      "severity": "high",
+      "tool": "execute_sql",
+      "input": {
+        "sql": "SELECT 1",
+        "cursor": "v2:00000000deadbeef:5"
+      },
+      "target_ids": ["pg18_full"],
+      "expect": {
+        "step_status": "ok",
+        "payload_kind": "object",
+        "code_equals": "INVALID_CURSOR",
+        "reason_equals": "invalid_cursor"
+      }
+    }
+  ]
+}

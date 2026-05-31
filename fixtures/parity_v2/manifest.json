@@ -1,0 +1,20 @@
+{
+  "spec_version": "2026-02-06",
+  "schema_version": "1",
+  "contract_doc": "docs/parity-contract.md",
+  "python_reference_repo": "postgres-mcp (python companion implementation)",
+  "fixtures_file": "fixtures/parity_v2/tool_cases.json",
+  "normalization_rules_file": "fixtures/parity_v2/normalization_rules.json",
+  "known_differences_file": "fixtures/parity_v2/known_differences.json",
+  "tools": [
+    "list_schemas",
+    "list_objects",
+    "get_object_details",
+    "explain_query",
+    "execute_sql",
+    "analyze_workload_indexes",
+    "analyze_query_indexes",
+    "analyze_db_health",
+    "get_top_queries"
+  ]
+}

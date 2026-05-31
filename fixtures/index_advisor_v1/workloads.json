@@ -1,0 +1,67 @@
+{
+  "schema_version": "1",
+  "description": "Seeded workload cases for index advisor reproducibility and Python↔Rust semantic comparison.",
+  "seed_profile": {
+    "table": "public.advisor_test",
+    "rows": 5000
+  },
+  "workloads": [
+    {
+      "id": "user_lookup",
+      "title": "Single-column equality filter",
+      "queries": [
+        "SELECT * FROM public.advisor_test WHERE user_id = 42"
+      ],
+      "method": "dta",
+      "comparison": {
+        "min_python_overlap_ratio": 1.0,
+        "max_rust_recommendations": 3
+      },
+      "rust_snapshot": {
+        "required_signatures": [
+          "advisor_test|user_id|btree"
+        ],
+        "allow_extra": true
+      }
+    },
+    {
+      "id": "created_at_range",
+      "title": "Time-range filter",
+      "queries": [
+        "SELECT * FROM public.advisor_test WHERE created_at >= NOW() - interval '2 days'"
+      ],
+      "method": "dta",
+      "comparison": {
+        "min_python_overlap_ratio": 1.0,
+        "max_rust_recommendations": 3
+      },
+      "rust_snapshot": {
+        "required_signatures": [
+          "advisor_test|created_at|btree"
+        ],
+        "allow_extra": true
+      }
+    },
+    {
+      "id": "compound_filters",
+      "title": "Mixed equality, JSON, and time predicates",
+      "queries": [
+        "SELECT * FROM public.advisor_test WHERE user_id = 42 AND status = 'active'",
+        "SELECT * FROM public.advisor_test WHERE metadata->>'tier' = 'pro'",
+        "SELECT * FROM public.advisor_test WHERE created_at >= NOW() - interval '2 days'"
+      ],
+      "method": "dta",
+      "comparison": {
+        "min_python_overlap_ratio": 0.0,
+        "min_python_column_overlap_ratio": 1.0,
+        "max_rust_recommendations": 6
+      },
+      "rust_snapshot": {
+        "required_signatures": [
+          "advisor_test|status,user_id|btree"
+        ],
+        "allow_extra": true
+      }
+    }
+  ]
+}

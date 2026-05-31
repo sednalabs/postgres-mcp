@@ -1,0 +1,74 @@
+name: runtime-safety
+
+on:
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "src/**"
+      - "scripts/runtime_safety_conformance.py"
+      - "scripts/runtime_safety_conformance.sh"
+      - "docs/SAFETY_CHECKLIST.md"
+      - "docs/release-checklist.md"
+      - ".github/workflows/runtime-safety.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "src/**"
+      - "scripts/runtime_safety_conformance.py"
+      - "scripts/runtime_safety_conformance.sh"
+      - "docs/SAFETY_CHECKLIST.md"
+      - "docs/release-checklist.md"
+      - ".github/workflows/runtime-safety.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: swatinem/rust-cache@v2
+
+      - name: Wait for postgres service
+        run: |
+          for _ in $(seq 1 30); do
+            if pg_isready -h 127.0.0.1 -p 5432 -U postgres -d postgres >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "postgres service did not become ready in time" >&2
+          exit 1
+
+      - name: Run runtime safety conformance gate
+        env:
+          DATABASE_URI: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+        run: ./scripts/runtime_safety_conformance.sh --require-db-runtime

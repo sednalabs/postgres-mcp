@@ -1,0 +1,33 @@
+[package]
+name = "postgres-mcp"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "PostgreSQL MCP server with schema, query, health, and safety tooling."
+repository = "https://github.com/sednalabs/postgres-mcp"
+readme = "README.md"
+
+[dependencies]
+anyhow = "1.0.100"
+clap = { version = "4.5.59", features = ["derive"] }
+regex = "1.11.1"
+rmcp = { version = "1.1.0", features = ["server", "macros", "schemars", "transport-io"] }
+schemars = "1.2.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+sha2 = "0.10.9"
+getrandom = "0.3.4"
+tokio = { version = "1.49.0", features = ["rt-multi-thread", "macros", "signal", "sync", "time", "process", "io-util"] }
+tokio-postgres = { version = "0.7.15", features = ["array-impls", "with-serde_json-1"] }
+time = { version = "0.3.44", features = ["formatting"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter", "fmt"] }
+
+mcp-toolkit-observability = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "1cf322071d84e27fe3002ee53198353af0ea6513", package = "mcp-toolkit-observability", features = ["tracing-bridge"] }
+mcp-toolkit-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "1cf322071d84e27fe3002ee53198353af0ea6513", package = "mcp-toolkit-core" }
+mcp-toolkit-postgres = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "1cf322071d84e27fe3002ee53198353af0ea6513", package = "mcp-toolkit-postgres" }
+mcp-toolkit-policy-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "1cf322071d84e27fe3002ee53198353af0ea6513", package = "mcp-toolkit-policy-core" }
+mcp-toolkit-policy-runtime = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "1cf322071d84e27fe3002ee53198353af0ea6513", package = "mcp-toolkit-policy-runtime" }
+
+[dev-dependencies]
+mcp-toolkit-testing = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "1cf322071d84e27fe3002ee53198353af0ea6513", package = "mcp-toolkit-testing" }

@@ -1,0 +1,139 @@
+{
+  "schema_version": "1",
+  "differences": [
+    {
+      "id": "kd-response-envelope",
+      "status": "active",
+      "tools": [
+        "list_schemas",
+        "list_objects",
+        "get_object_details",
+        "explain_query",
+        "execute_sql",
+        "analyze_workload_indexes",
+        "analyze_query_indexes",
+        "analyze_db_health",
+        "get_top_queries"
+      ],
+      "title": "Response envelope representation",
+      "summary": "Python commonly uses text content envelopes, while Rust commonly uses structured JSON payloads.",
+      "impact": "Clients should support both envelope shapes when comparing or consuming responses across implementations.",
+      "workaround": "Normalize responses with fixtures/parity_v2/normalization_rules.json before semantic comparison.",
+      "target_resolution": "Keep this as a documented compatibility difference unless both implementations align on a single envelope contract."
+    },
+    {
+      "id": "kd-error-envelope",
+      "status": "active",
+      "tools": [
+        "list_objects",
+        "get_object_details",
+        "explain_query",
+        "execute_sql",
+        "analyze_query_indexes",
+        "get_top_queries"
+      ],
+      "title": "Application error representation",
+      "summary": "Python commonly emits `Error: ...` text, while Rust emits `{ \"error\": ... }` structured objects.",
+      "impact": "Error handlers should not rely on a single display format across implementations.",
+      "workaround": "Apply canonical error normalization from fixtures/parity_v2/normalization_rules.json.",
+      "target_resolution": "Keep as a documented compatibility difference while clients standardize on normalized error handling."
+    },
+    {
+      "id": "kd-object-list-key-shape",
+      "status": "active",
+      "tools": [
+        "list_objects"
+      ],
+      "title": "List-object field naming",
+      "summary": "Python exposes normalized keys such as `schema/name/type`, while Rust returns SQL-native keys such as `table_schema/table_name/table_type`.",
+      "impact": "Field-name-sensitive consumers need a small key-mapping step for cross-implementation comparisons.",
+      "workaround": "Map equivalent fields during normalization before semantic diffing.",
+      "target_resolution": "Revisit during response-shape alignment work."
+    },
+    {
+      "id": "kd-object-details-constraints-shape",
+      "status": "active",
+      "tools": [
+        "get_object_details"
+      ],
+      "title": "Constraint representation in object details",
+      "summary": "Python aggregates constraints by name and columns, while Rust returns row-oriented constraint records.",
+      "impact": "Constraint payloads require grouping before direct semantic comparison.",
+      "workaround": "Group Rust rows by constraint name before comparing constraint semantics.",
+      "target_resolution": "Align representation once parity harness coverage is complete."
+    },
+    {
+      "id": "kd-explain-plan-representation",
+      "status": "active",
+      "tools": [
+        "explain_query"
+      ],
+      "title": "Explain plan representation",
+      "summary": "Python emphasizes human-readable explain text, while Rust returns structured JSON plan objects.",
+      "impact": "Display text equality is not a reliable parity signal across implementations.",
+      "workaround": "Compare normalized structural plan semantics rather than rendering format.",
+      "target_resolution": "Preserve representation flexibility while enforcing semantic parity through normalized plan assertions."
+    },
+    {
+      "id": "kd-execute-no-results-shape",
+      "status": "active",
+      "tools": [
+        "execute_sql"
+      ],
+      "title": "No-results payload shape",
+      "summary": "Python uses a plain `No results` text message, while Rust uses a structured status object.",
+      "impact": "Zero-row outcomes have different response root shapes across implementations.",
+      "workaround": "Normalize both responses to a shared `no_results` semantic status.",
+      "target_resolution": "Keep as a documented compatibility difference unless a shared status payload is adopted."
+    },
+    {
+      "id": "kd-index-advisor-presentation",
+      "status": "active",
+      "tools": [
+        "analyze_workload_indexes",
+        "analyze_query_indexes"
+      ],
+      "title": "Advisor output presentation",
+      "summary": "Python emits richer narrative text from DTA presentation logic, while Rust returns direct recommendation objects from heuristic analysis.",
+      "impact": "Presentation text and scoring narratives are not directly comparable one-to-one.",
+      "workaround": "Compare recommendation semantics (table, columns, method, definition) instead of presentation text.",
+      "target_resolution": "Continue improving semantic parity while preserving machine-friendly structured output."
+    },
+    {
+      "id": "kd-health-invalid-params-classification",
+      "status": "active",
+      "tools": [
+        "analyze_db_health"
+      ],
+      "title": "Invalid health-type error classification",
+      "summary": "Python returns an in-band explanatory text response, while Rust returns a protocol-level `invalid_params` tool-call error.",
+      "impact": "This path uses different error classification layers (application message vs protocol error).",
+      "workaround": "Treat this as a known classification difference during parity evaluation.",
+      "target_resolution": "Set a shared validation contract once harness consumers confirm preferred behavior."
+    },
+    {
+      "id": "kd-health-presentation",
+      "status": "active",
+      "tools": [
+        "analyze_db_health"
+      ],
+      "title": "Health output presentation",
+      "summary": "Python formats health checks as concatenated text sections, while Rust returns structured JSON grouped by health category.",
+      "impact": "Formatting and ordering can vary even when underlying health semantics align.",
+      "workaround": "Compare per-category semantic content after normalization.",
+      "target_resolution": "Keep structured Rust output and rely on normalized parity checks."
+    },
+    {
+      "id": "kd-top-queries-presentation",
+      "status": "active",
+      "tools": [
+        "get_top_queries"
+      ],
+      "title": "Top-queries output presentation",
+      "summary": "Python returns formatted textual summaries, while Rust returns query-row objects.",
+      "impact": "Display rendering and ordering expectations differ for presentation-focused consumers.",
+      "workaround": "Normalize to comparable query records when validating behavior.",
+      "target_resolution": "Maintain representation flexibility while enforcing query-selection parity."
+    }
+  ]
+}

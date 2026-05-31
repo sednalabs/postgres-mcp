@@ -1,0 +1,32 @@
+name: Rust Validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test And Tool Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Format check
+        run: cargo fmt --check
+
+      - name: Unit and integration tests
+        run: cargo test
+
+      - name: Print tool inventory
+        run: |
+          set -euo pipefail
+          cargo run --bin postgres-mcp -- --print-tools > /tmp/tools.json
+          test -s /tmp/tools.json

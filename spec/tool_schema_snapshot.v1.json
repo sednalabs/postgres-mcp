@@ -1,0 +1,2273 @@
+{
+  "schema": "mcp_tool_schema_snapshot",
+  "tools": [
+    {
+      "description": "Analyzes database health. Here are the available health checks: index, connection, vacuum, sequence, replication, buffer, constraint, all.",
+      "execution": {
+        "taskSupport": "optional"
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "health_type": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "title": "AnalyzeDbHealthArgs",
+        "type": "object"
+      },
+      "name": "analyze_db_health",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredObjectToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Analyze a list of (up to 10) SQL queries and recommend optimal indexes",
+      "execution": {
+        "taskSupport": "optional"
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "max_index_size_mb": {
+            "default": null,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "method": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "queries": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "queries"
+        ],
+        "title": "AnalyzeQueryIndexesArgs",
+        "type": "object"
+      },
+      "name": "analyze_query_indexes",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredObjectToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Analyze frequently executed queries in the database and recommend optimal indexes",
+      "execution": {
+        "taskSupport": "optional"
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "max_index_size_mb": {
+            "default": null,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "method": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "title": "AnalyzeWorkloadIndexesArgs",
+        "type": "object"
+      },
+      "name": "analyze_workload_indexes",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredObjectToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Describe query result columns without executing the query body",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "params": {
+            "default": null,
+            "items": true,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "sql": {
+            "type": "string"
+          },
+          "statement_timeout_ms": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "sql"
+        ],
+        "title": "DescribeSqlArgs",
+        "type": "object"
+      },
+      "name": "describe_sql",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredObjectToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Explains the execution plan for a SQL query, showing how the database will execute it and provides detailed cost estimates.",
+      "inputSchema": {
+        "$defs": {
+          "HypotheticalIndexArg": {
+            "properties": {
+              "columns": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "table": {
+                "type": "string"
+              },
+              "using": {
+                "default": null,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "table",
+              "columns"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "analyze": {
+            "default": false,
+            "type": "boolean"
+          },
+          "hypothetical_indexes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/HypotheticalIndexArg"
+            },
+            "type": "array"
+          },
+          "sql": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sql"
+        ],
+        "title": "ExplainQueryArgs",
+        "type": "object"
+      },
+      "name": "explain_query"
+    },
+    {
+      "description": "Launch a full-result export job and return an artifact handle when complete (deprecated: use export_sql with task augmentation)",
+      "inputSchema": {
+        "$defs": {
+          "ExecuteSqlExportFormat": {
+            "enum": [
+              "csv",
+              "tsv",
+              "jsonl"
+            ],
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "format": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExecuteSqlExportFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "params": {
+            "default": null,
+            "items": true,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "preflight_check": {
+            "default": null,
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "sql": {
+            "type": "string"
+          },
+          "statement_timeout_ms": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "sql"
+        ],
+        "title": "ExportJobStartArgs",
+        "type": "object"
+      },
+      "name": "export_job_start",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredObjectToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Run a read query, export the full result, and return an artifact handle",
+      "execution": {
+        "taskSupport": "optional"
+      },
+      "inputSchema": {
+        "$defs": {
+          "ExecuteSqlExportFormat": {
+            "enum": [
+              "csv",
+              "tsv",
+              "jsonl"
+            ],
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "format": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExecuteSqlExportFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "params": {
+            "default": null,
+            "items": true,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "preflight_check": {
+            "default": null,
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "sql": {
+            "type": "string"
+          },
+          "statement_timeout_ms": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "sql"
+        ],
+        "title": "ExportJobStartArgs",
+        "type": "object"
+      },
+      "name": "export_sql",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredObjectToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Show detailed information about a database object",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "object_name": {
+            "type": "string"
+          },
+          "object_type": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schema_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_name",
+          "object_name"
+        ],
+        "title": "GetObjectDetailsArgs",
+        "type": "object"
+      },
+      "name": "get_object_details",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredObjectToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Reports the slowest or most resource-intensive queries using data from the 'pg_stat_statements' extension.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "limit": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "sort_by": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "title": "GetTopQueriesArgs",
+        "type": "object"
+      },
+      "name": "get_top_queries",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredObjectToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Cancel a running query or export job (deprecated: use MCP tasks/cancel)",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "JobCancelArgsVNext",
+        "type": "object"
+      },
+      "name": "job_cancel",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredObjectToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read generic job status and optionally wait or include the terminal result (deprecated: use MCP tasks/get and tasks/result)",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "include_result": {
+            "default": false,
+            "type": "boolean"
+          },
+          "job_id": {
+            "type": "string"
+          },
+          "wait_ms": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "wait_until_terminal": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "JobStatusArgsVNext",
+        "type": "object"
+      },
+      "name": "job_status",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredObjectToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List objects in a schema",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "cursor": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "include_columns": {
+            "default": false,
+            "type": "boolean"
+          },
+          "limit": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name_contains": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name_exact": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name_like": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name_pattern": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name_prefix": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "object_type": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schema_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_name"
+        ],
+        "title": "ListObjectsArgs",
+        "type": "object"
+      },
+      "name": "list_objects",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredRowsToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List all schemas in the database",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "ListSchemasArgs",
+        "type": "object"
+      },
+      "name": "list_schemas",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredRowsToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Cancel an asynchronous SQL query job (compatibility surface)",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "QueryCancelArgs",
+        "type": "object"
+      },
+      "name": "query_cancel"
+    },
+    {
+      "description": "Launch a long-running structured read query job (deprecated: use query_sql with task augmentation)",
+      "inputSchema": {
+        "$defs": {
+          "ReadQueryProfile": {
+            "enum": [
+              "compact",
+              "inspect"
+            ],
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "cursor": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "max_cell_chars": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max_rows": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "params": {
+            "default": null,
+            "items": true,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "preflight_check": {
+            "default": null,
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReadQueryProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session_id": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sql": {
+            "type": "string"
+          },
+          "statement_timeout_ms": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "sql"
+        ],
+        "title": "QuerySqlArgsVNext",
+        "type": "object"
+      },
+      "name": "query_job_start",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredObjectToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Run a structured read query and return row objects",
+      "execution": {
+        "taskSupport": "optional"
+      },
+      "inputSchema": {
+        "$defs": {
+          "ReadQueryProfile": {
+            "enum": [
+              "compact",
+              "inspect"
+            ],
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "cursor": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "max_cell_chars": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max_rows": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "params": {
+            "default": null,
+            "items": true,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "preflight_check": {
+            "default": null,
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReadQueryProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session_id": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sql": {
+            "type": "string"
+          },
+          "statement_timeout_ms": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "sql"
+        ],
+        "title": "QuerySqlArgsVNext",
+        "type": "object"
+      },
+      "name": "query_sql",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredRowsToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Start an asynchronous SQL query and return a job_id (compatibility surface; prefer query_sql or query_tuples with task augmentation)",
+      "inputSchema": {
+        "$defs": {
+          "ExecuteSqlArgs": {
+            "properties": {
+              "count_mode": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExecuteSqlCountMode"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currency_columns": {
+                "default": null,
+                "items": {
+                  "type": "string"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "cursor": {
+                "default": null,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "describe_only": {
+                "default": false,
+                "type": "boolean"
+              },
+              "diagnose_on_timeout": {
+                "default": null,
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "export_format": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExecuteSqlExportFormat"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "export_to_file": {
+                "default": false,
+                "type": "boolean"
+              },
+              "include_total_row_count": {
+                "default": null,
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "max_cell_chars": {
+                "default": null,
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "max_rows": {
+                "default": null,
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "metadata_verbosity": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExecuteSqlMetadataVerbosity"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "output_mode": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ResponseOutputMode"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "params": {
+                "default": null,
+                "items": true,
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "preflight_check": {
+                "default": null,
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "profile": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExecuteSqlProfile"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "response_formatting_mode": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ResponseFormattingMode"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "session_id": {
+                "default": null,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "sql": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "statement_timeout_ms": {
+                "default": null,
+                "maximum": 300000,
+                "minimum": 1,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "summary_only": {
+                "default": false,
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "ExecuteSqlCountMode": {
+            "enum": [
+              "none",
+              "exact",
+              "estimated",
+              "async"
+            ],
+            "type": "string"
+          },
+          "ExecuteSqlExportFormat": {
+            "enum": [
+              "csv",
+              "tsv",
+              "jsonl"
+            ],
+            "type": "string"
+          },
+          "ExecuteSqlMetadataVerbosity": {
+            "enum": [
+              "compact",
+              "standard",
+              "full"
+            ],
+            "type": "string"
+          },
+          "ExecuteSqlProfile": {
+            "enum": [
+              "fast_agent",
+              "human_debug",
+              "heavy_view"
+            ],
+            "type": "string"
+          },
+          "ResponseFormattingMode": {
+            "enum": [
+              "currency",
+              "markdown"
+            ],
+            "type": "string"
+          },
+          "ResponseOutputMode": {
+            "enum": [
+              "auto",
+              "rows",
+              "rows_safe",
+              "tuples",
+              "scalar",
+              "data_only"
+            ],
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "count_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExecuteSqlCountMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency_columns": {
+            "default": null,
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "cursor": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "describe_only": {
+            "default": false,
+            "type": "boolean"
+          },
+          "diagnose_on_timeout": {
+            "default": null,
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "execute_sql": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExecuteSqlArgs"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "export_format": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExecuteSqlExportFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "export_to_file": {
+            "default": false,
+            "type": "boolean"
+          },
+          "include_total_row_count": {
+            "default": null,
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "max_cell_chars": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max_rows": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "metadata_verbosity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExecuteSqlMetadataVerbosity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ResponseOutputMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "params": {
+            "default": null,
+            "items": true,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "preflight_check": {
+            "default": null,
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExecuteSqlProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "response_formatting_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ResponseFormattingMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session_id": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sql": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statement_timeout_ms": {
+            "default": null,
+            "maximum": 300000,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "summary_only": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "title": "QueryStartArgs",
+        "type": "object"
+      },
+      "name": "query_start"
+    },
+    {
+      "description": "Start a query and block until terminal status (or until wait_ms deadline) (compatibility surface; prefer query_sql or query_tuples with task augmentation)",
+      "inputSchema": {
+        "$defs": {
+          "ExecuteSqlArgs": {
+            "properties": {
+              "count_mode": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExecuteSqlCountMode"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currency_columns": {
+                "default": null,
+                "items": {
+                  "type": "string"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "cursor": {
+                "default": null,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "describe_only": {
+                "default": false,
+                "type": "boolean"
+              },
+              "diagnose_on_timeout": {
+                "default": null,
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "export_format": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExecuteSqlExportFormat"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "export_to_file": {
+                "default": false,
+                "type": "boolean"
+              },
+              "include_total_row_count": {
+                "default": null,
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "max_cell_chars": {
+                "default": null,
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "max_rows": {
+                "default": null,
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "metadata_verbosity": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExecuteSqlMetadataVerbosity"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "output_mode": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ResponseOutputMode"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "params": {
+                "default": null,
+                "items": true,
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "preflight_check": {
+                "default": null,
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "profile": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExecuteSqlProfile"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "response_formatting_mode": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ResponseFormattingMode"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "session_id": {
+                "default": null,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "sql": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "statement_timeout_ms": {
+                "default": null,
+                "maximum": 300000,
+                "minimum": 1,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "summary_only": {
+                "default": false,
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "ExecuteSqlCountMode": {
+            "enum": [
+              "none",
+              "exact",
+              "estimated",
+              "async"
+            ],
+            "type": "string"
+          },
+          "ExecuteSqlExportFormat": {
+            "enum": [
+              "csv",
+              "tsv",
+              "jsonl"
+            ],
+            "type": "string"
+          },
+          "ExecuteSqlMetadataVerbosity": {
+            "enum": [
+              "compact",
+              "standard",
+              "full"
+            ],
+            "type": "string"
+          },
+          "ExecuteSqlProfile": {
+            "enum": [
+              "fast_agent",
+              "human_debug",
+              "heavy_view"
+            ],
+            "type": "string"
+          },
+          "ResponseFormattingMode": {
+            "enum": [
+              "currency",
+              "markdown"
+            ],
+            "type": "string"
+          },
+          "ResponseOutputMode": {
+            "enum": [
+              "auto",
+              "rows",
+              "rows_safe",
+              "tuples",
+              "scalar",
+              "data_only"
+            ],
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "count_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExecuteSqlCountMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency_columns": {
+            "default": null,
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "cursor": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "describe_only": {
+            "default": false,
+            "type": "boolean"
+          },
+          "diagnose_on_timeout": {
+            "default": null,
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "execute_sql": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExecuteSqlArgs"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "export_format": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExecuteSqlExportFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "export_to_file": {
+            "default": false,
+            "type": "boolean"
+          },
+          "include_total_row_count": {
+            "default": null,
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "max_cell_chars": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max_rows": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "metadata_verbosity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExecuteSqlMetadataVerbosity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ResponseOutputMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "params": {
+            "default": null,
+            "items": true,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "preflight_check": {
+            "default": null,
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExecuteSqlProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "response_formatting_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ResponseFormattingMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session_id": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sql": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statement_timeout_ms": {
+            "default": null,
+            "maximum": 300000,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "summary_only": {
+            "default": false,
+            "type": "boolean"
+          },
+          "wait_ms": {
+            "default": null,
+            "maximum": 3600000,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "title": "QueryStartAndWaitArgs",
+        "type": "object"
+      },
+      "name": "query_start_and_wait"
+    },
+    {
+      "description": "Get asynchronous query status and optionally wait for updates (compatibility surface)",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "wait_ms": {
+            "default": null,
+            "maximum": 3600000,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "wait_until_terminal": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "QueryStatusArgs",
+        "type": "object"
+      },
+      "name": "query_status"
+    },
+    {
+      "description": "Run a structured read query and return columns plus tuple rows",
+      "execution": {
+        "taskSupport": "optional"
+      },
+      "inputSchema": {
+        "$defs": {
+          "ReadQueryProfile": {
+            "enum": [
+              "compact",
+              "inspect"
+            ],
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "cursor": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "max_cell_chars": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max_rows": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "params": {
+            "default": null,
+            "items": true,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "preflight_check": {
+            "default": null,
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReadQueryProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session_id": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sql": {
+            "type": "string"
+          },
+          "statement_timeout_ms": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "sql"
+        ],
+        "title": "QueryTuplesArgs",
+        "type": "object"
+      },
+      "name": "query_tuples",
+      "outputSchema": {
+        "$defs": {
+          "StructuredTableDataSchema": {
+            "properties": {
+              "columns": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "rows": {
+                "items": {
+                  "items": true,
+                  "type": "array"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "columns",
+              "rows"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/StructuredTableDataSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "meta"
+        ],
+        "title": "StructuredTableToolResultSchema",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Run a read query and return markdown for agent/operator inspection",
+      "execution": {
+        "taskSupport": "optional"
+      },
+      "inputSchema": {
+        "$defs": {
+          "ReadQueryProfile": {
+            "enum": [
+              "compact",
+              "inspect"
+            ],
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "cursor": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "max_cell_chars": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max_rows": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "params": {
+            "default": null,
+            "items": true,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "preflight_check": {
+            "default": null,
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReadQueryProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session_id": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sql": {
+            "type": "string"
+          },
+          "statement_timeout_ms": {
+            "default": null,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "sql"
+        ],
+        "title": "RenderSqlArgs",
+        "type": "object"
+      },
+      "name": "render_sql"
+    },
+    {
+      "description": "Close a pinned PostgreSQL session and discard its temp state",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "session_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "title": "SessionIdArgs",
+        "type": "object"
+      },
+      "name": "session_close"
+    },
+    {
+      "description": "Open a pinned PostgreSQL session for temp-table and transaction workflows",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "idle_ttl_ms": {
+            "default": null,
+            "maximum": 3600000,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "title": "SessionOpenArgs",
+        "type": "object"
+      },
+      "name": "session_open"
+    },
+    {
+      "description": "Inspect pinned-session state including expiry and transaction hints",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "session_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "title": "SessionIdArgs",
+        "type": "object"
+      },
+      "name": "session_status"
+    }
+  ],
+  "version": 1
+}

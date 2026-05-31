@@ -1,0 +1,47 @@
+{
+  "profiles": {
+    "python_text_repr_rows": {
+      "description": "Python returns ResponseType with one TextContent whose text is str(list[dict]) or str(dict). Decode by removing envelope and parsing Python literal syntax.",
+      "steps": [
+        "extract_first_text_content",
+        "strip_error_prefix_if_present",
+        "parse_python_literal_if_possible",
+        "normalize_object_key_order"
+      ]
+    },
+    "python_text_plain": {
+      "description": "Python returns textual status or textual diagnostics; compare as normalized string.",
+      "steps": [
+        "extract_first_text_content",
+        "normalize_whitespace"
+      ]
+    },
+    "rust_structured_json": {
+      "description": "Rust returns structured JSON payloads for successful tool calls and {\"error\":...} for application-level errors.",
+      "steps": [
+        "extract_structured_json",
+        "normalize_object_key_order"
+      ]
+    }
+  },
+  "nondeterminism": {
+    "numeric_tolerance": {
+      "default_abs": 1e-09
+    },
+    "ignore_paths": [
+      "$..Planning Time",
+      "$..Execution Time",
+      "$..stddev_exec_time"
+    ],
+    "unordered_array_paths": [
+      "$.results.index.invalid",
+      "$.results.index.duplicate",
+      "$.results.index.unused",
+      "$.results.index.bloat_candidates"
+    ]
+  },
+  "error_mapping": {
+    "python_prefix": "Error: ",
+    "rust_error_object_key": "error"
+  }
+}

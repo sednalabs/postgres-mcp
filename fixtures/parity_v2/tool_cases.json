@@ -1,0 +1,646 @@
+{
+  "schema_version": "1",
+  "cases": [
+    {
+      "id": "list_schemas.success.shape",
+      "tool": "list_schemas",
+      "title": "Schema listing returns ordered row objects",
+      "source": {
+        "python": "src/postgres_mcp/server.py:93",
+        "rust": "src/tools.rs:126"
+      },
+      "input": {},
+      "normalization_profiles": {
+        "python": "python_text_repr_rows",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "array<object>",
+          "required_keys": [
+            "schema_name",
+            "schema_owner",
+            "schema_type"
+          ]
+        }
+      },
+      "rust_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "array<object>",
+          "required_keys": [
+            "schema_name",
+            "schema_owner",
+            "schema_type"
+          ]
+        }
+      },
+      "assertions": [
+        "rows ordered by schema_type then schema_name",
+        "no additional wrapping envelope after normalization"
+      ],
+      "comparison_mode": "equivalent",
+      "known_difference_ids": [
+        "kd-response-envelope"
+      ]
+    },
+    {
+      "id": "list_objects.invalid_object_type",
+      "tool": "list_objects",
+      "title": "Unsupported object type validation branch",
+      "source": {
+        "python": "src/postgres_mcp/server.py:118",
+        "rust": "src/tools.rs:153"
+      },
+      "input": {
+        "schema_name": "public",
+        "object_type": "bad_type"
+      },
+      "normalization_profiles": {
+        "python": "python_text_plain",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "error",
+        "error_text_exact": "Error: Unsupported object type: bad_type"
+      },
+      "rust_expected": {
+        "kind": "error",
+        "error_text_exact": "Unsupported object type: expected table|view|sequence|extension"
+      },
+      "assertions": [
+        "validation happens before DB query execution"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-error-envelope"
+      ]
+    },
+    {
+      "id": "list_objects.success.table_shape",
+      "tool": "list_objects",
+      "title": "Table listing result shape",
+      "source": {
+        "python": "src/postgres_mcp/server.py:118",
+        "rust": "src/tools.rs:153"
+      },
+      "input": {
+        "schema_name": "public",
+        "object_type": "table"
+      },
+      "normalization_profiles": {
+        "python": "python_text_repr_rows",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "array<object>",
+          "required_keys": [
+            "schema",
+            "name",
+            "type"
+          ]
+        }
+      },
+      "rust_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "array<object>",
+          "required_keys": [
+            "table_schema",
+            "table_name",
+            "table_type"
+          ]
+        }
+      },
+      "assertions": [
+        "semantic fields map schema/name/type",
+        "ordering by name/table_name ascending"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-object-list-key-shape",
+        "kd-response-envelope"
+      ]
+    },
+    {
+      "id": "get_object_details.unsupported_type",
+      "tool": "get_object_details",
+      "title": "Unsupported object type validation branch",
+      "source": {
+        "python": "src/postgres_mcp/server.py:186",
+        "rust": "src/tools.rs:195"
+      },
+      "input": {
+        "schema_name": "public",
+        "object_name": "users",
+        "object_type": "bogus"
+      },
+      "normalization_profiles": {
+        "python": "python_text_plain",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "error",
+        "error_text_exact": "Error: Unsupported object type: bogus"
+      },
+      "rust_expected": {
+        "kind": "error",
+        "error_text_exact": "Unsupported object type: expected table|view|sequence|extension"
+      },
+      "assertions": [
+        "validation does not depend on DB state"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-error-envelope"
+      ]
+    },
+    {
+      "id": "get_object_details.table_shape",
+      "tool": "get_object_details",
+      "title": "Table details include basic metadata, columns, constraints, indexes",
+      "source": {
+        "python": "src/postgres_mcp/server.py:186",
+        "rust": "src/tools.rs:195"
+      },
+      "input": {
+        "schema_name": "public",
+        "object_name": "users",
+        "object_type": "table"
+      },
+      "normalization_profiles": {
+        "python": "python_text_repr_rows",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "object",
+          "required_keys": [
+            "basic",
+            "columns",
+            "constraints",
+            "indexes"
+          ]
+        }
+      },
+      "rust_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "object",
+          "required_keys": [
+            "basic",
+            "columns",
+            "constraints",
+            "indexes"
+          ]
+        }
+      },
+      "assertions": [
+        "basic.schema/basic.name/basic.type present",
+        "constraints compared via kd-object-details-constraints-shape normalization"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-object-details-constraints-shape",
+        "kd-response-envelope"
+      ]
+    },
+    {
+      "id": "explain_query.analyze_with_hypothetical_disallowed",
+      "tool": "explain_query",
+      "title": "Mutually exclusive analyze and hypothetical_indexes",
+      "source": {
+        "python": "src/postgres_mcp/server.py:319",
+        "rust": "src/tools.rs:298"
+      },
+      "input": {
+        "sql": "SELECT 1",
+        "analyze": true,
+        "hypothetical_indexes": [
+          {
+            "table": "public.users",
+            "columns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      "normalization_profiles": {
+        "python": "python_text_plain",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "error",
+        "error_text_exact": "Error: Cannot use analyze and hypothetical indexes together"
+      },
+      "rust_expected": {
+        "kind": "error",
+        "error_text_exact": "Cannot use analyze=true together with hypothetical_indexes"
+      },
+      "assertions": [
+        "branch runs before DB EXPLAIN execution"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-error-envelope"
+      ]
+    },
+    {
+      "id": "explain_query.success_shape",
+      "tool": "explain_query",
+      "title": "Explain success payload semantics",
+      "source": {
+        "python": "src/postgres_mcp/server.py:319",
+        "rust": "src/tools.rs:298"
+      },
+      "input": {
+        "sql": "SELECT * FROM public.users"
+      },
+      "normalization_profiles": {
+        "python": "python_text_plain",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "string",
+          "contains_any": [
+            "Cost:",
+            "Planning Time:",
+            "Execution Time:"
+          ]
+        }
+      },
+      "rust_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "object",
+          "required_keys": [
+            "analyze",
+            "hypothetical_indexes",
+            "plan"
+          ]
+        }
+      },
+      "assertions": [
+        "compare structural plan semantics after normalization",
+        "text rendering differences are covered by kd-explain-plan-representation"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-explain-plan-representation"
+      ]
+    },
+    {
+      "id": "execute_sql.empty_sql_validation",
+      "tool": "execute_sql",
+      "title": "Empty SQL follows no-results semantics",
+      "source": {
+        "python": "src/postgres_mcp/server.py:399",
+        "rust": "src/tools.rs:394"
+      },
+      "input": {
+        "sql": ""
+      },
+      "normalization_profiles": {
+        "python": "python_text_plain",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "string",
+          "exact": "No results"
+        }
+      },
+      "rust_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "object",
+          "required_keys": [
+            "message"
+          ]
+        }
+      },
+      "assertions": [
+        "empty SQL currently maps to no_results semantics in both implementations"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-execute-no-results-shape"
+      ]
+    },
+    {
+      "id": "execute_sql.no_results_semantics",
+      "tool": "execute_sql",
+      "title": "No result rows status response",
+      "source": {
+        "python": "src/postgres_mcp/server.py:399",
+        "rust": "src/tools.rs:394"
+      },
+      "input": {
+        "sql": "CREATE TABLE IF NOT EXISTS parity_tmp(id int)"
+      },
+      "normalization_profiles": {
+        "python": "python_text_plain",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "string",
+          "exact": "No results"
+        }
+      },
+      "rust_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "object",
+          "required_keys": [
+            "message"
+          ]
+        }
+      },
+      "assertions": [
+        "normalize both to canonical no_results status"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-execute-no-results-shape"
+      ]
+    },
+    {
+      "id": "analyze_workload_indexes.extension_missing",
+      "tool": "analyze_workload_indexes",
+      "title": "Workload advisor response shape",
+      "source": {
+        "python": "src/postgres_mcp/server.py:414",
+        "rust": "src/tools.rs:418"
+      },
+      "input": {
+        "method": "dta"
+      },
+      "normalization_profiles": {
+        "python": "python_text_plain",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "string"
+        }
+      },
+      "rust_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "object",
+          "required_keys": [
+            "method",
+            "max_index_size_mb",
+            "workload_queries_considered",
+            "recommendations"
+          ]
+        }
+      },
+      "assertions": [
+        "workload advisor returns implementation-specific response envelopes"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-index-advisor-presentation",
+        "kd-response-envelope"
+      ]
+    },
+    {
+      "id": "analyze_query_indexes.empty_queries",
+      "tool": "analyze_query_indexes",
+      "title": "Non-empty list validation",
+      "source": {
+        "python": "src/postgres_mcp/server.py:435",
+        "rust": "src/tools.rs:477"
+      },
+      "input": {
+        "queries": []
+      },
+      "normalization_profiles": {
+        "python": "python_text_plain",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "error",
+        "error_text_exact": "Error: Please provide a non-empty list of queries to analyze."
+      },
+      "rust_expected": {
+        "kind": "error",
+        "error_text_exact": "Please provide a non-empty list of queries to analyze."
+      },
+      "assertions": [
+        "max query count and non-empty checks enforced before planning"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-error-envelope"
+      ]
+    },
+    {
+      "id": "analyze_query_indexes.success_shape",
+      "tool": "analyze_query_indexes",
+      "title": "Recommendation payload shape",
+      "source": {
+        "python": "src/postgres_mcp/server.py:435",
+        "rust": "src/tools.rs:477"
+      },
+      "input": {
+        "queries": [
+          "SELECT * FROM public.users WHERE id = 1"
+        ],
+        "method": "dta"
+      },
+      "normalization_profiles": {
+        "python": "python_text_plain",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "string"
+        }
+      },
+      "rust_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "object",
+          "required_keys": [
+            "method",
+            "max_index_size_mb",
+            "recommendations"
+          ]
+        }
+      },
+      "assertions": [
+        "recommendation semantics compared via normalized table/columns/method fields"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-index-advisor-presentation"
+      ]
+    },
+    {
+      "id": "analyze_db_health.invalid_health_type",
+      "tool": "analyze_db_health",
+      "title": "Invalid health type behavior",
+      "source": {
+        "python": "src/postgres_mcp/database_health/database_health.py:33",
+        "rust": "src/tools.rs:507"
+      },
+      "input": {
+        "health_type": "bogus"
+      },
+      "normalization_profiles": {
+        "python": "python_text_plain",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "string",
+          "contains_any": [
+            "Invalid health types provided",
+            "Valid values are"
+          ]
+        }
+      },
+      "rust_expected": {
+        "kind": "tool_call_error",
+        "error_class": "invalid_params",
+        "error_text_contains": "Invalid health type"
+      },
+      "assertions": [
+        "classification difference allowlisted by kd-health-invalid-params-classification"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-health-invalid-params-classification"
+      ]
+    },
+    {
+      "id": "analyze_db_health.success_shape",
+      "tool": "analyze_db_health",
+      "title": "Health check results include requested sections",
+      "source": {
+        "python": "src/postgres_mcp/server.py:462",
+        "rust": "src/tools.rs:507"
+      },
+      "input": {
+        "health_type": "index,connection"
+      },
+      "normalization_profiles": {
+        "python": "python_text_plain",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "string",
+          "contains_any": [
+            "Invalid index check:",
+            "Connection health:"
+          ]
+        }
+      },
+      "rust_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "object",
+          "required_keys": [
+            "health_type",
+            "results"
+          ]
+        }
+      },
+      "assertions": [
+        "requested components exist under results"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-health-presentation"
+      ]
+    },
+    {
+      "id": "get_top_queries.invalid_sort",
+      "tool": "get_top_queries",
+      "title": "Invalid sort criteria branch",
+      "source": {
+        "python": "src/postgres_mcp/server.py:491",
+        "rust": "src/tools.rs:548"
+      },
+      "input": {
+        "sort_by": "bad_sort"
+      },
+      "normalization_profiles": {
+        "python": "python_text_plain",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "error",
+        "error_text_exact": "Error: Invalid sort criteria. Please use 'resources' or 'mean_time' or 'total_time'."
+      },
+      "rust_expected": {
+        "kind": "error",
+        "error_text_exact": "Invalid sort criteria. Please use 'resources', 'mean_time', or 'total_time'."
+      },
+      "assertions": [
+        "validation does not issue SQL"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-error-envelope"
+      ]
+    },
+    {
+      "id": "get_top_queries.success_shape",
+      "tool": "get_top_queries",
+      "title": "Top query payload shape by mode",
+      "source": {
+        "python": "src/postgres_mcp/server.py:491",
+        "rust": "src/tools.rs:548"
+      },
+      "input": {
+        "sort_by": "mean_time",
+        "limit": 10
+      },
+      "normalization_profiles": {
+        "python": "python_text_plain",
+        "rust": "rust_structured_json"
+      },
+      "python_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "string",
+          "contains_any": [
+            "Top",
+            "queries"
+          ]
+        }
+      },
+      "rust_expected": {
+        "kind": "ok",
+        "payload_shape": {
+          "root": "array<object>"
+        }
+      },
+      "assertions": [
+        "row semantics compared after text-to-rows extraction where possible",
+        "display formatting differences covered by kd-top-queries-presentation"
+      ],
+      "comparison_mode": "known_difference",
+      "known_difference_ids": [
+        "kd-top-queries-presentation"
+      ]
+    }
+  ]
+}

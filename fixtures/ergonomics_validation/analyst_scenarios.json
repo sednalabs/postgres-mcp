@@ -1,0 +1,116 @@
+{
+  "schema_version": "1",
+  "id": "analyst-scenarios",
+  "title": "Postgres MCP operator verification rollout validation scenarios",
+  "scenarios": [
+    {
+      "id": "provider-triage",
+      "name": "Provider triage",
+      "description": "Readable table output for a grouped provider/status triage loop.",
+      "attempts": [
+        {
+          "label": "operator triage loop",
+          "expect_success": true,
+          "input": {
+            "sql": "WITH latest_status(route_id, provider, status) AS (\n  VALUES\n    (101, 'provider_a', 'landed'),\n    (102, 'provider_a', 'queued'),\n    (103, 'provider_b', 'queued'),\n    (104, 'provider_b', 'retry')\n)\nSELECT provider, status, COUNT(*) AS route_count\nFROM latest_status\nGROUP BY provider, status\nORDER BY provider, status;",
+            "max_rows": 25,
+            "output_mode": "table"
+          },
+          "expect_json_pointers": {
+            "/ok": true,
+            "/meta/effective_output_mode": "rows"
+          }
+        }
+      ]
+    },
+    {
+      "id": "direct-route-date-counts",
+      "name": "Direct-route date counts",
+      "description": "Minimal sql-only invocation for a scalar date/count verification loop.",
+      "attempts": [
+        {
+          "label": "operator default capped fetch loop",
+          "expect_success": true,
+          "input": {
+            "sql": "WITH route_dates(route_id, landed_at) AS (\n  VALUES\n    (201, DATE '2026-03-06'),\n    (202, DATE '2026-03-07'),\n    (203, DATE '2026-03-07')\n)\nSELECT COUNT(*) AS direct_route_count\nFROM route_dates\nWHERE landed_at >= DATE '2026-03-07';"
+          },
+          "expect_json_pointers": {
+            "/ok": true,
+            "/meta/effective_output_mode": "scalar"
+          }
+        }
+      ]
+    },
+    {
+      "id": "queue-state-verification",
+      "name": "Queue-state verification",
+      "description": "Compact fast_agent polling loop for recent queue rows.",
+      "attempts": [
+        {
+          "label": "operator fast_agent loop",
+          "expect_success": true,
+          "input": {
+            "sql": "WITH recrawl_queue(route, status, last_seen_at) AS (\n  VALUES\n    ('/offers/101', 'queued', TIMESTAMP '2026-03-09 09:15:00'),\n    ('/offers/102', 'retry', TIMESTAMP '2026-03-09 09:10:00'),\n    ('/offers/103', 'queued', TIMESTAMP '2026-03-09 09:05:00')\n)\nSELECT route, status, last_seen_at\nFROM recrawl_queue\nORDER BY last_seen_at DESC;",
+            "max_rows": 25,
+            "profile": "fast_agent"
+          },
+          "expect_json_pointers": {
+            "/ok": true,
+            "/meta/output_mode": "data_only"
+          }
+        }
+      ]
+    },
+    {
+      "id": "landed-date-diffing",
+      "name": "Landed-date diffing",
+      "description": "Readable row output for before/after landed-date comparisons.",
+      "attempts": [
+        {
+          "label": "operator landed-date diff loop",
+          "expect_success": true,
+          "input": {
+            "sql": "WITH before_snapshot(route_id, landed_at) AS (\n  VALUES\n    (301, DATE '2026-03-04'),\n    (302, DATE '2026-03-06')\n),\nafter_snapshot(route_id, landed_at) AS (\n  VALUES\n    (301, DATE '2026-03-05'),\n    (302, DATE '2026-03-06')\n)\nSELECT after_snapshot.route_id,\n       before_snapshot.landed_at AS previous_landed_at,\n       after_snapshot.landed_at AS current_landed_at,\n       (after_snapshot.landed_at - before_snapshot.landed_at) AS delta_days\nFROM after_snapshot\nJOIN before_snapshot USING (route_id)\nORDER BY after_snapshot.route_id;",
+            "max_rows": 25,
+            "output_mode": "table"
+          },
+          "expect_json_pointers": {
+            "/ok": true,
+            "/meta/effective_output_mode": "rows"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bound-params-single-statement-correction",
+      "name": "Bound params single-statement correction",
+      "description": "Params should reject multi-statement SQL once and succeed after a single-statement rewrite.",
+      "attempts": [
+        {
+          "label": "operator initial params attempt with top-level semicolon",
+          "expect_success": false,
+          "input": {
+            "sql": "SELECT 1; SELECT route_id, status FROM (VALUES (401, 'queued'), (402, 'retry')) AS queue(route_id, status) WHERE route_id = ANY($1);",
+            "params": [[401, 402]],
+            "output_mode": "table"
+          },
+          "expect_error_code": "INVALID_REQUEST",
+          "expect_error_contains": "remove top-level semicolons before retrying"
+        },
+        {
+          "label": "operator correction with single-statement params query",
+          "expect_success": true,
+          "input": {
+            "sql": "WITH queue(route_id, status) AS (\n  VALUES\n    (401, 'queued'),\n    (402, 'retry'),\n    (403, 'queued')\n)\nSELECT route_id, status\nFROM queue\nWHERE route_id = ANY($1)\nORDER BY route_id;",
+            "params": [[401, 402]],
+            "output_mode": "table"
+          },
+          "expect_json_pointers": {
+            "/ok": true,
+            "/meta/effective_output_mode": "rows"
+          }
+        }
+      ]
+    }
+  ]
+}
