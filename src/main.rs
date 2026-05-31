@@ -302,11 +302,20 @@ async fn run_startup_db_connect(
         StartupDbConnectMode::Background => {
             tokio::spawn(async move {
                 if let Err(err) = db.startup_connect_probe(timeout).await {
-                    tracing::warn!(error = %err.to_string(), "background startup DB probe failed");
+                    warn_background_startup_db_probe_failed(&err);
                 }
             });
             Ok(())
         }
+    }
+}
+
+fn warn_background_startup_db_probe_failed(err: &impl std::fmt::Display) {
+    let error = err.to_string();
+    if error.is_empty() {
+        tracing::warn!("background startup DB probe failed");
+    } else {
+        tracing::warn!(error = %error, "background startup DB probe failed");
     }
 }
 

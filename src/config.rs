@@ -696,13 +696,22 @@ fn parse_env_json_string_array(name: &str) -> Result<Option<Vec<String>>> {
     for (idx, item) in items.iter().enumerate() {
         let value = item
             .as_str()
-            .ok_or_else(|| anyhow!("invalid {}[{}] (expected string)", name, idx))?;
+            .ok_or_else(|| invalid_env_json_string_item(name, idx))?;
         let trimmed = value.trim();
         if !trimmed.is_empty() {
             values.push(trimmed.to_string());
         }
     }
     Ok(Some(values))
+}
+
+fn invalid_env_json_string_item(name: &str, idx: usize) -> anyhow::Error {
+    let mut message = String::from("invalid ");
+    message.push_str(name);
+    message.push('[');
+    message.push_str(&idx.to_string());
+    message.push_str("] (expected string)");
+    anyhow::Error::msg(message)
 }
 
 fn parse_env_csv_string_array(name: &str) -> Result<Vec<String>> {

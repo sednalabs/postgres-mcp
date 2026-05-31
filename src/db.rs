@@ -1313,10 +1313,7 @@ fn parse_bool_array(
         .map(|(idx, item)| match item {
             Value::Null if allow_nulls => Ok(None),
             Value::Bool(raw) => Ok(Some(*raw)),
-            _ => Err(DbError::sql_input_invalid(format!(
-                "params[{}][{}] expected boolean array element",
-                position, idx
-            ))),
+            _ => Err(array_element_error(position, idx, "boolean")),
         })
         .collect()
 }
@@ -1331,16 +1328,10 @@ fn parse_i64_array(
         .enumerate()
         .map(|(idx, item)| match item {
             Value::Null if allow_nulls => Ok(None),
-            Value::Number(number) => parse_explicit_i64(number, position).map(Some).map_err(|_| {
-                DbError::sql_input_invalid(format!(
-                    "params[{}][{}] expected integer array element",
-                    position, idx
-                ))
-            }),
-            _ => Err(DbError::sql_input_invalid(format!(
-                "params[{}][{}] expected integer array element",
-                position, idx
-            ))),
+            Value::Number(number) => parse_explicit_i64(number, position)
+                .map(Some)
+                .map_err(|_| array_element_error(position, idx, "integer")),
+            _ => Err(array_element_error(position, idx, "integer")),
         })
         .collect()
 }
@@ -1355,16 +1346,10 @@ fn parse_f64_array(
         .enumerate()
         .map(|(idx, item)| match item {
             Value::Null if allow_nulls => Ok(None),
-            Value::Number(number) => parse_explicit_f64(number, position).map(Some).map_err(|_| {
-                DbError::sql_input_invalid(format!(
-                    "params[{}][{}] expected numeric array element",
-                    position, idx
-                ))
-            }),
-            _ => Err(DbError::sql_input_invalid(format!(
-                "params[{}][{}] expected numeric array element",
-                position, idx
-            ))),
+            Value::Number(number) => parse_explicit_f64(number, position)
+                .map(Some)
+                .map_err(|_| array_element_error(position, idx, "numeric")),
+            _ => Err(array_element_error(position, idx, "numeric")),
         })
         .collect()
 }
@@ -1380,12 +1365,20 @@ fn parse_string_array(
         .map(|(idx, item)| match item {
             Value::Null if allow_nulls => Ok(None),
             Value::String(raw) => Ok(Some(raw.clone())),
-            _ => Err(DbError::sql_input_invalid(format!(
-                "params[{}][{}] expected string array element",
-                position, idx
-            ))),
+            _ => Err(array_element_error(position, idx, "string")),
         })
         .collect()
+}
+
+fn array_element_error(position: usize, idx: usize, expected: &str) -> DbError {
+    let mut message = String::from("params[");
+    message.push_str(&position.to_string());
+    message.push_str("][");
+    message.push_str(&idx.to_string());
+    message.push_str("] expected ");
+    message.push_str(expected);
+    message.push_str(" array element");
+    DbError::sql_input_invalid(message)
 }
 
 fn parse_raw_bound_query_param_array(
