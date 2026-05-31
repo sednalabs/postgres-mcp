@@ -37,10 +37,10 @@ fn optional_name_filter_clause(
 ) -> String {
     compiled_filter
         .map(|filter| {
-            format!(
-                " AND {}",
-                ilike_literal_predicate(column_expr, &filter.pattern)
-            )
+            let predicate = ilike_literal_predicate(column_expr, &filter.pattern);
+            let mut clause = String::from(" AND ");
+            clause.push_str(&predicate);
+            clause
         })
         .unwrap_or_default()
 }

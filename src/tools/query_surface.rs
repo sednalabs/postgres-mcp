@@ -1291,15 +1291,18 @@ impl PostgresMcp {
             job_handle.mark_running();
             let result = match server.query_sql(Parameters(args_clone)).await {
                 Ok(result) => result,
-                Err(err) => CallToolResult::structured(json!({
-                    "ok": false,
-                    "error": {
-                        "error": err.to_string(),
-                        "code": "QUERY_JOB_INTERNAL",
-                        "reason": "query_job_internal",
-                    },
-                    "meta": {"elapsed_ms": 0}
-                })),
+                Err(err) => {
+                    let error = err.to_string();
+                    CallToolResult::structured(json!({
+                        "ok": false,
+                        "error": {
+                            "error": error,
+                            "code": "QUERY_JOB_INTERNAL",
+                            "reason": "query_job_internal",
+                        },
+                        "meta": {"elapsed_ms": 0}
+                    }))
+                }
             };
             let response = result.structured_content.clone().unwrap_or_else(|| {
                 json!({
@@ -1374,15 +1377,18 @@ impl PostgresMcp {
             job_handle.mark_running();
             let result = match server.run_export_query(&args_clone).await {
                 Ok(result) => result,
-                Err(err) => CallToolResult::structured(json!({
-                    "ok": false,
-                    "error": {
-                        "error": err.to_string(),
-                        "code": "QUERY_JOB_INTERNAL",
-                        "reason": "query_job_internal",
-                    },
-                    "meta": {"elapsed_ms": 0}
-                })),
+                Err(err) => {
+                    let error = err.to_string();
+                    CallToolResult::structured(json!({
+                        "ok": false,
+                        "error": {
+                            "error": error,
+                            "code": "QUERY_JOB_INTERNAL",
+                            "reason": "query_job_internal",
+                        },
+                        "meta": {"elapsed_ms": 0}
+                    }))
+                }
             };
             let response = result
                 .structured_content

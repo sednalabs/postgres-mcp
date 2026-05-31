@@ -1314,7 +1314,8 @@ fn parse_bool_array(
             Value::Null if allow_nulls => Ok(None),
             Value::Bool(raw) => Ok(Some(*raw)),
             _ => Err(DbError::sql_input_invalid(format!(
-                "params[{position}][{idx}] expected boolean array element"
+                "params[{}][{}] expected boolean array element",
+                position, idx
             ))),
         })
         .collect()
@@ -1332,11 +1333,13 @@ fn parse_i64_array(
             Value::Null if allow_nulls => Ok(None),
             Value::Number(number) => parse_explicit_i64(number, position).map(Some).map_err(|_| {
                 DbError::sql_input_invalid(format!(
-                    "params[{position}][{idx}] expected integer array element"
+                    "params[{}][{}] expected integer array element",
+                    position, idx
                 ))
             }),
             _ => Err(DbError::sql_input_invalid(format!(
-                "params[{position}][{idx}] expected integer array element"
+                "params[{}][{}] expected integer array element",
+                position, idx
             ))),
         })
         .collect()
@@ -1354,11 +1357,13 @@ fn parse_f64_array(
             Value::Null if allow_nulls => Ok(None),
             Value::Number(number) => parse_explicit_f64(number, position).map(Some).map_err(|_| {
                 DbError::sql_input_invalid(format!(
-                    "params[{position}][{idx}] expected numeric array element"
+                    "params[{}][{}] expected numeric array element",
+                    position, idx
                 ))
             }),
             _ => Err(DbError::sql_input_invalid(format!(
-                "params[{position}][{idx}] expected numeric array element"
+                "params[{}][{}] expected numeric array element",
+                position, idx
             ))),
         })
         .collect()
@@ -1376,7 +1381,8 @@ fn parse_string_array(
             Value::Null if allow_nulls => Ok(None),
             Value::String(raw) => Ok(Some(raw.clone())),
             _ => Err(DbError::sql_input_invalid(format!(
-                "params[{position}][{idx}] expected string array element"
+                "params[{}][{}] expected string array element",
+                position, idx
             ))),
         })
         .collect()

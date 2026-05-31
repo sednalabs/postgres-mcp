@@ -3972,15 +3972,18 @@ impl PostgresMcp {
                         "meta": {},
                     })
                 }),
-                Err(err) => json!({
-                    "ok": false,
-                    "error": {
-                        "error": err.to_string(),
-                        "code": "QUERY_JOB_INTERNAL",
-                        "reason": "query_job_internal",
-                    },
-                    "meta": {},
-                }),
+                Err(err) => {
+                    let error = err.to_string();
+                    json!({
+                        "ok": false,
+                        "error": {
+                            "error": error,
+                            "code": "QUERY_JOB_INTERNAL",
+                            "reason": "query_job_internal",
+                        },
+                        "meta": {},
+                    })
+                }
             };
 
             let terminal_state = if query_job_payload_failed(&payload) {

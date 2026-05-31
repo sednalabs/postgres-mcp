@@ -1620,15 +1620,18 @@ impl ServerHandler for PostgresMcp {
                     .await
                 {
                     Ok(result) => result,
-                    Err(err) => CallToolResult::structured(json!({
-                        "ok": false,
-                        "error": {
-                            "error": err.to_string(),
-                            "code": "TASK_EXECUTION_FAILED",
-                            "reason": "task_execution_failed",
-                        },
-                        "meta": {"elapsed_ms": 0}
-                    })),
+                    Err(err) => {
+                        let error = err.to_string();
+                        CallToolResult::structured(json!({
+                            "ok": false,
+                            "error": {
+                                "error": error,
+                                "code": "TASK_EXECUTION_FAILED",
+                                "reason": "task_execution_failed",
+                            },
+                            "meta": {"elapsed_ms": 0}
+                        }))
+                    }
                 };
                 let succeeded = extract_contract_error_summary(&result).is_none()
                     && result.is_error != Some(true);

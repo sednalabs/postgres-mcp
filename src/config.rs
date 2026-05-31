@@ -696,7 +696,7 @@ fn parse_env_json_string_array(name: &str) -> Result<Option<Vec<String>>> {
     for (idx, item) in items.iter().enumerate() {
         let value = item
             .as_str()
-            .ok_or_else(|| anyhow!("invalid {name}[{}] (expected string)", idx))?;
+            .ok_or_else(|| anyhow!("invalid {}[{}] (expected string)", name, idx))?;
         let trimmed = value.trim();
         if !trimmed.is_empty() {
             values.push(trimmed.to_string());
