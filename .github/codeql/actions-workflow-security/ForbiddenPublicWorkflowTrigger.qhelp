@@ -1,0 +1,16 @@
+<!DOCTYPE qhelp SYSTEM "qhelp.dtd">
+<qhelp>
+  <overview>
+    <p>
+      Public repositories should avoid triggers that run trusted workflow
+      context while processing untrusted pull request content.
+    </p>
+  </overview>
+  <recommendation>
+    <p>
+      Use <code>pull_request</code> with read-only token permissions for normal
+      validation. Move repository writes into a separate protected workflow that
+      does not checkout or execute untrusted code.
+    </p>
+  </recommendation>
+</qhelp>

@@ -1,0 +1,6 @@
+name: postgres-mcp-codeql-rust
+
+queries:
+  - uses: security-and-quality
+
+threat-models: [local]

@@ -1,0 +1,86 @@
+name: code-coverage
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: code-coverage::${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust-coverage:
+    name: Rust Cobertura coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      code-quality: write
+      pull-requests: read
+    steps:
+      - name: Checkout repository
+        # actions/checkout v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        # dtolnay/rust-toolchain stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+
+      - name: Cache cargo artifacts
+        # swatinem/rust-cache v2
+        uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
+
+      - name: Install coverage tool
+        # taiki-e/install-action v2
+        uses: taiki-e/install-action@7a79fe8c3a13344501c80d99cae481c1c9085912
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Generate Rust coverage
+        run: |
+          mkdir -p coverage
+          cargo llvm-cov --workspace --all-targets --all-features \
+            --cobertura --output-path coverage/rust.xml
+
+      - name: Upload Rust coverage to GitHub Code Quality
+        # actions/upload-code-coverage v1
+        uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3
+        with:
+          file: coverage/rust.xml
+          language: Rust
+          label: code-coverage/rust
+
+      - name: Upload Cobertura report
+        # actions/upload-artifact v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: rust-cobertura-coverage
+          path: coverage/rust.xml
+          if-no-files-found: error
+
+      - name: Summarize coverage report
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "### Rust coverage report" >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          for report in sorted(Path("coverage").glob("*.xml")):
+              root = ElementTree.parse(report).getroot()
+              line_rate = float(root.attrib.get("line-rate", "0"))
+              print(f"- `{report}`: {line_rate * 100:.2f}% line coverage")
+          PY
