@@ -21,22 +21,29 @@ on:
       - ".github/workflows/dependency-governance.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   dependency-governance:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        # actions/checkout v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        # dtolnay/rust-toolchain stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
 
       - name: Cache cargo artifacts
-        uses: swatinem/rust-cache@v2
+        # swatinem/rust-cache v2
+        uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
 
       - name: Install governance tools
-        uses: taiki-e/install-action@v2
+        # taiki-e/install-action v2
+        uses: taiki-e/install-action@7a79fe8c3a13344501c80d99cae481c1c9085912
         with:
           tool: cargo-deny,cargo-audit,cargo-outdated
 
