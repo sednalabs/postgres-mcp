@@ -50,7 +50,7 @@ jobs:
       CI_PARITY_READINESS_MIN_COMPOSE_REUSE_RATE_PCT: "20"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Detect optional mcp-probe repository
         id: probe_gate
