@@ -1888,6 +1888,25 @@ fn current_unix_time_ms() -> u64 {
         .unwrap_or(0)
 }
 
+fn validate_query_export_hash(query_hash: &str) -> Result<(), String> {
+    if query_hash.len() == 16 && query_hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        Ok(())
+    } else {
+        Err("query hash is not a valid export path component".to_string())
+    }
+}
+
+fn query_export_temp_root() -> std::path::PathBuf {
+    #[cfg(unix)]
+    {
+        std::path::PathBuf::from("/tmp")
+    }
+    #[cfg(not(unix))]
+    {
+        std::env::temp_dir()
+    }
+}
+
 fn query_job_suggested_wait_ms(snapshot: &crate::server::QueryJobSnapshot) -> Option<u64> {
     if snapshot.state.is_terminal() {
         return None;
@@ -3121,8 +3140,9 @@ fn write_query_output_export(
     query_hash: &str,
     format: ExecuteSqlExportFormat,
 ) -> Result<Value, String> {
+    validate_query_export_hash(query_hash)?;
     let now_ms = current_unix_time_ms();
-    let temp_dir = std::env::temp_dir();
+    let temp_dir = query_export_temp_root();
     let content = match export_delimiter(format) {
         Some(delimiter) => {
             let mut lines = Vec::new();
@@ -6525,6 +6545,19 @@ mod tests {
         assert!(written.contains("provider"));
         assert!(written.contains("aldi"));
         std::fs::remove_file(path).expect("export file should be removable");
+    }
+
+    #[test]
+    fn write_query_output_export_rejects_invalid_hash_path_components() {
+        let output = crate::db::QueryOutput {
+            rows: Vec::new(),
+            columns: Vec::new(),
+            rows_affected: None,
+        };
+
+        let err = write_query_output_export(&output, "../bad", ExecuteSqlExportFormat::Csv)
+            .expect_err("invalid hash should be rejected");
+        assert!(err.contains("query hash"));
     }
 
     #[test]

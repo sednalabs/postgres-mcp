@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -256,6 +256,7 @@ fn response_page_hash_for_tuple_context(
 
 #[derive(Debug, Clone)]
 struct WrittenExportArtifact {
+    handle: String,
     path: PathBuf,
     format: ExecuteSqlExportFormat,
     row_count: usize,
@@ -539,6 +540,77 @@ fn export_mime_type(format: ExecuteSqlExportFormat) -> &'static str {
     }
 }
 
+fn validate_artifact_file_stem(stem: &str) -> Result<(), String> {
+    if stem.is_empty() || stem.len() > 80 {
+        return Err("export artifact handle length is invalid".to_string());
+    }
+    if stem
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+    {
+        Ok(())
+    } else {
+        Err("export artifact handle contains an invalid character".to_string())
+    }
+}
+
+fn export_artifact_path(handle: &str, format: ExecuteSqlExportFormat) -> Result<PathBuf, String> {
+    validate_artifact_file_stem(handle)?;
+    let extension = export_file_extension(format);
+    Ok(export_artifact_temp_root().join(format!("{handle}.{extension}")))
+}
+
+fn export_artifact_temp_root() -> PathBuf {
+    #[cfg(unix)]
+    {
+        PathBuf::from("/tmp")
+    }
+    #[cfg(not(unix))]
+    {
+        std::env::temp_dir()
+    }
+}
+
+fn export_artifact_handle() -> Result<String, String> {
+    let mut entropy = [0u8; 6];
+    getrandom::fill(&mut entropy)
+        .map_err(|err| format!("failed to generate export artifact handle: {err}"))?;
+    let suffix = entropy
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    let timestamp_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0);
+    Ok(format!("art_ex_{timestamp_ms:016x}_{suffix}"))
+}
+
+fn create_export_artifact_file(
+    format: ExecuteSqlExportFormat,
+) -> Result<(String, PathBuf, File), String> {
+    let mut attempts = 0usize;
+    loop {
+        let handle = export_artifact_handle()?;
+        let path = export_artifact_path(&handle, format)?;
+        let mut file_options = OpenOptions::new();
+        file_options.create_new(true).write(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            file_options.mode(0o600);
+        }
+        match file_options.open(&path) {
+            Ok(file) => return Ok((handle, path, file)),
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists && attempts < 32 => {
+                attempts += 1;
+                continue;
+            }
+            Err(err) => return Err(format!("failed to create export artifact: {err}")),
+        }
+    }
+}
+
 fn render_export_cell(value: Option<&Value>) -> String {
     match value.unwrap_or(&Value::Null) {
         Value::Null => String::new(),
@@ -575,12 +647,8 @@ fn write_delimited_row(writer: &mut File, values: &[String], delimiter: u8) -> s
 fn write_export_artifact(
     output: &QueryOutput,
     format: ExecuteSqlExportFormat,
-    handle: &str,
 ) -> Result<WrittenExportArtifact, String> {
-    let extension = export_file_extension(format);
-    let path = std::env::temp_dir().join(format!("{handle}.{extension}"));
-    let mut file =
-        File::create(&path).map_err(|err| format!("failed to create export artifact: {err}"))?;
+    let (handle, path, mut file) = create_export_artifact_file(format)?;
 
     match format {
         ExecuteSqlExportFormat::Jsonl => {
@@ -614,10 +682,12 @@ fn write_export_artifact(
 
     file.flush()
         .map_err(|err| format!("failed to flush export artifact: {err}"))?;
-    let bytes = std::fs::metadata(&path)
+    let bytes = file
+        .metadata()
         .map_err(|err| format!("failed to stat export artifact: {err}"))?
         .len();
     Ok(WrittenExportArtifact {
+        handle,
         path,
         format,
         row_count: output.rows.len(),
@@ -845,17 +915,9 @@ impl PostgresMcp {
             }
         };
 
-        let handle = format!(
-            "art_ex_{:016x}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|duration| duration.as_millis() as u64)
-                .unwrap_or(0)
-        );
         let artifact = match write_export_artifact(
             &output,
             args.format.unwrap_or(ExecuteSqlExportFormat::Tsv),
-            &handle,
         ) {
             Ok(artifact) => artifact,
             Err(err) => {
@@ -873,6 +935,7 @@ impl PostgresMcp {
                 })));
             }
         };
+        let handle = artifact.handle.clone();
 
         self.register_export_artifact(ExportArtifactRecord {
             handle: handle.clone(),
@@ -1539,9 +1602,10 @@ impl PostgresMcp {
 mod tests {
     use super::{
         ADMIN_RETURNING_ROWS_CAP, QueryTuplesArgs, ReadToolKind, admin_sql_success,
-        build_paginated_sql, enriched_db_error, resolve_read_query_settings,
+        build_paginated_sql, enriched_db_error, export_artifact_handle, export_artifact_path,
+        export_artifact_temp_root, resolve_read_query_settings,
         response_page_hash_for_read_context, response_page_hash_for_session,
-        response_page_hash_for_tuple_context, tuple_payload,
+        response_page_hash_for_tuple_context, tuple_payload, validate_artifact_file_stem,
     };
     use crate::config::{
         AccessMode, AdvisorExternalConfig, ResponseAutoTabularMode, ResponseMode,
@@ -1549,7 +1613,7 @@ mod tests {
     };
     use crate::db::{DbEngine, DbError, QueryColumn, QueryOutput};
     use crate::server::PostgresMcp;
-    use crate::tools::ReadQueryProfile;
+    use crate::tools::{ExecuteSqlExportFormat, ReadQueryProfile};
     use rmcp::handler::server::wrapper::Parameters;
     use serde_json::{Map, Value, json};
     use std::env;
@@ -1604,6 +1668,33 @@ mod tests {
             sql,
             "SELECT * FROM (SELECT 1) AS pgmcp_query_page LIMIT 26 OFFSET 0"
         );
+    }
+
+    #[test]
+    fn export_artifact_handles_are_safe_file_stems() {
+        let handle = export_artifact_handle().expect("handle");
+
+        assert!(validate_artifact_file_stem(&handle).is_ok());
+        assert!(handle.starts_with("art_ex_"));
+        assert_eq!(handle.len(), "art_ex_".len() + 16 + 1 + 12);
+        assert!(validate_artifact_file_stem("../artifact").is_err());
+        assert!(validate_artifact_file_stem("artifact/name").is_err());
+        assert!(validate_artifact_file_stem("").is_err());
+    }
+
+    #[test]
+    fn export_artifact_paths_use_validated_temp_file_names() {
+        let path = export_artifact_path(
+            "art_ex_0000000000000000_abcdef123456",
+            ExecuteSqlExportFormat::Csv,
+        )
+        .expect("path");
+
+        assert_eq!(
+            path.file_name().and_then(|name| name.to_str()),
+            Some("art_ex_0000000000000000_abcdef123456.csv")
+        );
+        assert_eq!(path.parent(), Some(export_artifact_temp_root().as_path()));
     }
 
     #[test]
