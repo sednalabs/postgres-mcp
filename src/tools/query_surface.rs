@@ -159,7 +159,7 @@ fn resolve_read_query_settings(
     match tool_kind {
         ReadToolKind::Query | ReadToolKind::Tuple => match profile {
             Some(ReadQueryProfile::Compact) => ResolvedReadQuerySettings {
-                max_rows: Some(max_rows.unwrap_or(response_page_size.min(100).max(1))),
+                max_rows: Some(max_rows.unwrap_or(response_page_size.clamp(1, 100))),
                 max_cell_chars: max_cell_chars.or(Some(256)),
                 preflight_check: preflight_check.unwrap_or(false),
             },
