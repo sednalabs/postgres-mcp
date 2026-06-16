@@ -164,7 +164,9 @@ fn resolve_read_query_settings(
                 preflight_check: preflight_check.unwrap_or(false),
             },
             Some(ReadQueryProfile::Inspect) => ResolvedReadQuerySettings {
-                max_rows: Some(max_rows.unwrap_or(response_page_size.max(1))),
+                max_rows: Some(
+                    max_rows.unwrap_or(response_page_size.min(QUERY_RENDER_MAX_ROWS_CAP).max(1)),
+                ),
                 max_cell_chars,
                 preflight_check: preflight_check.unwrap_or(true),
             },
