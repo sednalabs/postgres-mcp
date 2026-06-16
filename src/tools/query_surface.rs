@@ -629,6 +629,8 @@ fn write_delimited_row(writer: &mut File, values: &[String], delimiter: u8) -> s
             write!(writer, "{delimiter}")?;
         }
         first = false;
+        // RFC 4180-style CSV escaping: embedded double quotes inside a field
+        // must be escaped by doubling them (`"` -> `""`) before optional quoting.
         let escaped = value.replace('"', "\"\"");
         if escaped.contains(delimiter)
             || escaped.contains('\n')
