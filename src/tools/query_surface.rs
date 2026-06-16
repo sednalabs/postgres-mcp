@@ -1453,10 +1453,19 @@ impl PostgresMcp {
                     }))
                 }
             };
+            let fallback_response = json!({
+                "ok": false,
+                "error": {
+                    "error": "export_sql did not return a structured payload",
+                    "code": "QUERY_JOB_INTERNAL",
+                    "reason": "query_job_internal"
+                },
+                "meta": {"elapsed_ms": 0}
+            });
             let response = result
                 .structured_content
                 .clone()
-                .unwrap_or_else(|| json!({"ok": false, "error": {"error": "export_sql did not return a structured payload", "code": "QUERY_JOB_INTERNAL", "reason": "query_job_internal"}, "meta": {"elapsed_ms": 0}}));
+                .unwrap_or_else(|| fallback_response.clone());
             let state = if response.get("ok").and_then(Value::as_bool) == Some(true) {
                 QueryJobState::Succeeded
             } else {
