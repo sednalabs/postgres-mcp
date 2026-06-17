@@ -254,6 +254,9 @@ predicate jobNeedsWritePermission(Job job, string permissionName) {
   permissionName = "security-events" and
   jobUsesActionMatching(job, "(?i)^github/codeql-action.*", _)
   or
+  permissionName = "security-events" and
+  job.(Uses).getCallee().regexpMatch("(?i)^google/osv-scanner-action/.github/workflows/osv-scanner-reusable(-pr)?\\.yml")
+  or
   permissionName = "actions" and
   exists(string command |
     jobRunCommand(job, command) and
