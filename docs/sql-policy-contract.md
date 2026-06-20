@@ -1,7 +1,7 @@
 # SQL Policy Contract
 
-This document defines the public contract expected from the read-only SQL
-policy used by `postgres-mcp`.
+This document defines the public contract expected from the read-only SQL policy
+used by `postgres-mcp`.
 
 ## Contract Shape
 
@@ -12,7 +12,7 @@ Policy decisions use stable machine-readable fields:
   "allow": true,
   "code": null,
   "reason": null,
-  "policy_contract_version": "v1"
+  "policy_contract_version": "sql-restricted/v1"
 }
 ```
 
@@ -21,9 +21,9 @@ For denials:
 ```json
 {
   "allow": false,
-  "code": "SQL_WRITE_DENIED",
-  "reason": "mutating_statement",
-  "policy_contract_version": "v1"
+  "code": "NOT_READ_ONLY_PREFIX",
+  "reason": "restricted_sql",
+  "policy_contract_version": "sql-restricted/v1"
 }
 ```
 
@@ -32,6 +32,12 @@ Rules:
 - `code` and `reason` are compatibility commitments.
 - `policy_contract_version` changes when decision shape or code semantics break
   compatibility.
+- Runtime policy evaluation flows through the shared toolkit policy authority,
+  which records `decision_source`, `runtime_mode`, and
+  `policy_contract_version` in conformance reports.
+- Restricted-mode policy inputs must also fit the policy-kernel boundary limits;
+  oversized policy inputs fail closed even when the general SQL payload limit is
+  higher.
 - Human-readable messages may improve over time but must remain redacted.
 
 ## Local Rebaseline Flow
@@ -42,7 +48,7 @@ Run from the repository root:
 ./scripts/sql_policy_contract_rebaseline.sh
 ```
 
-The command verifies local classifier alignment and writes:
+The command verifies local policy-authority alignment and writes:
 
 ```text
 .tmp/policy_contract_rebaseline/sql_policy_contract_rebaseline.json
@@ -56,7 +62,7 @@ When the companion policy toolkit workspace is available, run:
 ./scripts/sql_policy_toolkit_conformance.sh
 ```
 
-The command writes:
+The command writes a report that includes toolkit policy-authority provenance:
 
 ```text
 .tmp/sql_policy_conformance/sql_policy_core_vs_kernel_report.json
@@ -107,8 +113,8 @@ The SQL policy contract evolves additively by default:
 
 Run a new baseline whenever one of these changes:
 
-- local SQL classifier code/reason mapping
-- companion policy toolkit classifier mapping
+- local SQL policy-authority code/reason mapping
+- companion policy toolkit authority mapping
 - runtime policy error envelope semantics
 - SQL vector expectations used by conformance scripts
 
@@ -148,7 +154,7 @@ Runtime safety failure:
 This workflow helps prove:
 
 - policy decision shape stays stable
-- runtime and toolkit classifiers agree with expected vectors
+- runtime and toolkit policy authorities agree with expected vectors
 - read-only and timeout envelopes are exercised
 - release artifacts preserve enough metadata for review
 

@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use postgres_mcp::sql_safety::classify_restricted_sql;
+use mcp_toolkit_policy_runtime::PolicyRuntimeMode;
+use postgres_mcp::sql_safety::evaluate_restricted_sql_policy_with_mode;
 use serde::{Deserialize, Serialize};
 
 const SQL_POLICY_CONTRACT_VERSION: &str = "sql-restricted/v1";
@@ -44,6 +45,13 @@ struct DecisionModel {
     reason: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+struct PolicyProvenance {
+    decision_source: String,
+    runtime_mode: String,
+    policy_contract_version: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct CaseMismatch {
     case: String,
@@ -57,13 +65,14 @@ struct CaseMismatch {
 struct ConformanceReport {
     vectors_path: String,
     policy_contract_version: String,
+    policy_provenance: PolicyProvenance,
     total_cases: usize,
     matched_cases: usize,
     mismatch_count: usize,
     mismatches: Vec<CaseMismatch>,
 }
 
-fn evaluate_runtime(input: &SqlVectorInput) -> (DecisionModel, Option<String>) {
+fn evaluate_runtime(input: &SqlVectorInput) -> (DecisionModel, PolicyProvenance) {
     if input.policy_contract_version != SQL_POLICY_CONTRACT_VERSION {
         return (
             DecisionModel {
@@ -71,30 +80,35 @@ fn evaluate_runtime(input: &SqlVectorInput) -> (DecisionModel, Option<String>) {
                 code: Some("CLASSIFIER_UNAVAILABLE".to_string()),
                 reason: Some(SQL_POLICY_REASON.to_string()),
             },
-            Some(format!(
-                "unsupported policy_contract_version: {}",
-                input.policy_contract_version
-            )),
+            PolicyProvenance {
+                decision_source: "postgres_mcp.sql_policy_conformance.contract_guard".to_string(),
+                runtime_mode: "rust".to_string(),
+                policy_contract_version: Some(SQL_POLICY_CONTRACT_VERSION.to_string()),
+            },
         );
     }
 
-    match classify_restricted_sql(&input.sql) {
-        Ok(()) => (
-            DecisionModel {
-                allow: true,
-                code: None,
-                reason: None,
-            },
-            None,
-        ),
-        Err(err) => (
-            DecisionModel {
-                allow: false,
-                code: Some(err.code.as_str().to_string()),
-                reason: Some(SQL_POLICY_REASON.to_string()),
-            },
-            Some(err.message),
-        ),
+    let decision = evaluate_restricted_sql_policy_with_mode(&input.sql, PolicyRuntimeMode::Rust);
+    let provenance = PolicyProvenance {
+        decision_source: decision.decision_source.clone(),
+        runtime_mode: runtime_mode_label(decision.runtime_mode).to_string(),
+        policy_contract_version: decision.policy_contract_version.clone(),
+    };
+    (
+        DecisionModel {
+            allow: decision.allow,
+            code: decision.code.clone(),
+            reason: decision.reason.clone(),
+        },
+        provenance,
+    )
+}
+
+fn runtime_mode_label(mode: PolicyRuntimeMode) -> &'static str {
+    match mode {
+        PolicyRuntimeMode::Rust => "rust",
+        PolicyRuntimeMode::SparkPrefer => "spark_prefer",
+        PolicyRuntimeMode::SparkRequired => "spark_required",
     }
 }
 
@@ -141,6 +155,7 @@ fn main() -> Result<()> {
         serde_json::from_str(&raw).context("failed to parse vectors JSON")?;
 
     let mut mismatches = Vec::new();
+    let mut policy_provenance: Option<PolicyProvenance> = None;
 
     for case in &cases {
         if case.op != "sql_restricted_policy_decision" {
@@ -151,7 +166,10 @@ fn main() -> Result<()> {
             ));
         }
 
-        let (actual, message) = evaluate_runtime(&case.input);
+        let (actual, provenance) = evaluate_runtime(&case.input);
+        if policy_provenance.is_none() {
+            policy_provenance = Some(provenance);
+        }
         let mismatched_fields = mismatch_fields(&case.expect, &actual);
 
         if !mismatched_fields.is_empty() {
@@ -160,7 +178,7 @@ fn main() -> Result<()> {
                 expected: case.expect.clone(),
                 actual,
                 mismatch_fields: mismatched_fields,
-                actual_classifier_message: message,
+                actual_classifier_message: None,
             });
         }
     }
@@ -168,6 +186,11 @@ fn main() -> Result<()> {
     let report = ConformanceReport {
         vectors_path: args.vectors.to_string_lossy().into_owned(),
         policy_contract_version: SQL_POLICY_CONTRACT_VERSION.to_string(),
+        policy_provenance: policy_provenance.unwrap_or_else(|| PolicyProvenance {
+            decision_source: "postgres_mcp.sql_policy_conformance.no_cases".to_string(),
+            runtime_mode: "rust".to_string(),
+            policy_contract_version: Some(SQL_POLICY_CONTRACT_VERSION.to_string()),
+        }),
         total_cases: cases.len(),
         matched_cases: cases.len().saturating_sub(mismatches.len()),
         mismatch_count: mismatches.len(),

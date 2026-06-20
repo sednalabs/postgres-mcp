@@ -96,6 +96,30 @@ def write_artifacts(
     artifacts.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def print_failed_checks(report_json: dict) -> None:
+    checks = report_json.get("checks", [])
+    failed = [
+        check
+        for check in checks
+        if isinstance(check, dict) and check.get("status") == "fail"
+    ]
+    if not failed:
+        return
+
+    print("runtime safety failed checks:", file=sys.stderr)
+    for check in failed:
+        print(
+            json.dumps(
+                {
+                    "name": check.get("name"),
+                    "details": check.get("details", {}),
+                },
+                sort_keys=True,
+            ),
+            file=sys.stderr,
+        )
+
+
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     args = parse_args(root)
@@ -127,6 +151,8 @@ def main() -> int:
         return completed.returncode or 2
 
     report_json = json.loads(args.report.read_text(encoding="utf-8"))
+    if not bool(report_json.get("pass", False)):
+        print_failed_checks(report_json)
     write_artifacts(
         report=args.report,
         artifacts=args.artifacts,
