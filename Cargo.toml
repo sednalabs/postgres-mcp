@@ -19,15 +19,15 @@ sha2 = "0.10.9"
 getrandom = "0.3.4"
 tokio = { version = "1.49.0", features = ["rt-multi-thread", "macros", "signal", "sync", "time", "process", "io-util"] }
 tokio-postgres = { version = "0.7.15", features = ["array-impls", "with-serde_json-1"] }
-time = { version = "0.3.44", features = ["formatting"] }
+time = { version = "0.3.49", features = ["formatting"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "fmt"] }
 
-mcp-toolkit-observability = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "1cf322071d84e27fe3002ee53198353af0ea6513", package = "mcp-toolkit-observability", features = ["tracing-bridge"] }
-mcp-toolkit-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "1cf322071d84e27fe3002ee53198353af0ea6513", package = "mcp-toolkit-core" }
+mcp-toolkit-observability = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "99a17c957049723fcc4cc6239068a3a5c42a751c", package = "mcp-toolkit-observability", features = ["tracing-bridge"] }
+mcp-toolkit-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "99a17c957049723fcc4cc6239068a3a5c42a751c", package = "mcp-toolkit-core" }
 mcp-toolkit-postgres = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "1cf322071d84e27fe3002ee53198353af0ea6513", package = "mcp-toolkit-postgres" }
-mcp-toolkit-policy-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "1cf322071d84e27fe3002ee53198353af0ea6513", package = "mcp-toolkit-policy-core" }
-mcp-toolkit-policy-runtime = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "1cf322071d84e27fe3002ee53198353af0ea6513", package = "mcp-toolkit-policy-runtime" }
+mcp-toolkit-policy-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "99a17c957049723fcc4cc6239068a3a5c42a751c", package = "mcp-toolkit-policy-core" }
+mcp-toolkit-policy-runtime = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "99a17c957049723fcc4cc6239068a3a5c42a751c", package = "mcp-toolkit-policy-runtime" }
 
 [dev-dependencies]
-mcp-toolkit-testing = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "1cf322071d84e27fe3002ee53198353af0ea6513", package = "mcp-toolkit-testing" }
+mcp-toolkit-testing = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "99a17c957049723fcc4cc6239068a3a5c42a751c", package = "mcp-toolkit-testing" }
