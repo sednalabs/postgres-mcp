@@ -11,7 +11,7 @@ readme = "README.md"
 anyhow = "1.0.100"
 clap = { version = "4.5.59", features = ["derive"] }
 regex = "1.11.1"
-rmcp = { version = "1.1.0", features = ["server", "macros", "schemars", "transport-io"] }
+rmcp = { version = "2.0.0", features = ["server", "macros", "schemars", "transport-io"] }
 schemars = "1.2.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
