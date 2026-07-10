@@ -382,12 +382,12 @@ def extract_error_message_from_actual(actual: Any, rust_error_key: str) -> str:
                     # Rust often wraps errors in JSON text payloads.
                     try:
                         parsed = json.loads(text)
-                        if isinstance(parsed, dict):
-                            err_value = parsed.get(rust_error_key)
-                            if isinstance(err_value, str):
-                                return err_value
                     except json.JSONDecodeError:
-                        pass
+                        return text
+                    if isinstance(parsed, dict):
+                        err_value = parsed.get(rust_error_key)
+                        if isinstance(err_value, str):
+                            return err_value
                     return text
 
     return str(actual)
