@@ -130,7 +130,7 @@ jobs:
 
       - name: Upload integration matrix report artifact
         if: always() && steps.probe_gate.outputs.available == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-matrix-report
           path: |
