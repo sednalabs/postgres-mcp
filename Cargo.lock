@@ -1205,7 +1205,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "mcp-toolkit-core",
  "mcp-toolkit-observability",
  "mcp-toolkit-policy-core",
