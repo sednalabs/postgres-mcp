@@ -159,12 +159,14 @@ fn resolve_read_query_settings(
     match tool_kind {
         ReadToolKind::Query | ReadToolKind::Tuple => match profile {
             Some(ReadQueryProfile::Compact) => ResolvedReadQuerySettings {
-                max_rows: Some(max_rows.unwrap_or(response_page_size.min(100).max(1))),
+                max_rows: Some(max_rows.unwrap_or(response_page_size.clamp(1, 100))),
                 max_cell_chars: max_cell_chars.or(Some(256)),
                 preflight_check: preflight_check.unwrap_or(false),
             },
             Some(ReadQueryProfile::Inspect) => ResolvedReadQuerySettings {
-                max_rows: Some(max_rows.unwrap_or(response_page_size.max(1))),
+                max_rows: Some(
+                    max_rows.unwrap_or(response_page_size.clamp(1, QUERY_RENDER_MAX_ROWS_CAP)),
+                ),
                 max_cell_chars,
                 preflight_check: preflight_check.unwrap_or(true),
             },
@@ -629,6 +631,8 @@ fn write_delimited_row(writer: &mut File, values: &[String], delimiter: u8) -> s
             write!(writer, "{delimiter}")?;
         }
         first = false;
+        // RFC 4180-style CSV escaping: embedded double quotes inside a field
+        // must be escaped by doubling them (`"` -> `""`) before optional quoting.
         let escaped = value.replace('"', "\"\"");
         if escaped.contains(delimiter)
             || escaped.contains('\n')
@@ -1453,10 +1457,19 @@ impl PostgresMcp {
                     }))
                 }
             };
+            let fallback_response = json!({
+                "ok": false,
+                "error": {
+                    "error": "export_sql did not return a structured payload",
+                    "code": "QUERY_JOB_INTERNAL",
+                    "reason": "query_job_internal"
+                },
+                "meta": {"elapsed_ms": 0}
+            });
             let response = result
                 .structured_content
                 .clone()
-                .unwrap_or_else(|| json!({"ok": false, "error": {"error": "export_sql did not return a structured payload", "code": "QUERY_JOB_INTERNAL", "reason": "query_job_internal"}, "meta": {"elapsed_ms": 0}}));
+                .unwrap_or_else(|| fallback_response.clone());
             let state = if response.get("ok").and_then(Value::as_bool) == Some(true) {
                 QueryJobState::Succeeded
             } else {
