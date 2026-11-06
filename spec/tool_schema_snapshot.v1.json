@@ -3,9 +3,6 @@
   "tools": [
     {
       "description": "Analyzes database health. Here are the available health checks: index, connection, vacuum, sequence, replication, buffer, constraint, all.",
-      "execution": {
-        "taskSupport": "optional"
-      },
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
@@ -17,7 +14,6 @@
             ]
           }
         },
-        "title": "AnalyzeDbHealthArgs",
         "type": "object"
       },
       "name": "analyze_db_health",
@@ -56,9 +52,6 @@
     },
     {
       "description": "Analyze a list of (up to 10) SQL queries and recommend optimal indexes",
-      "execution": {
-        "taskSupport": "optional"
-      },
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
@@ -87,7 +80,6 @@
         "required": [
           "queries"
         ],
-        "title": "AnalyzeQueryIndexesArgs",
         "type": "object"
       },
       "name": "analyze_query_indexes",
@@ -126,9 +118,6 @@
     },
     {
       "description": "Analyze frequently executed queries in the database and recommend optimal indexes",
-      "execution": {
-        "taskSupport": "optional"
-      },
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
@@ -148,7 +137,6 @@
             ]
           }
         },
-        "title": "AnalyzeWorkloadIndexesArgs",
         "type": "object"
       },
       "name": "analyze_workload_indexes",
@@ -213,7 +201,6 @@
         "required": [
           "sql"
         ],
-        "title": "DescribeSqlArgs",
         "type": "object"
       },
       "name": "describe_sql",
@@ -300,13 +287,12 @@
         "required": [
           "sql"
         ],
-        "title": "ExplainQueryArgs",
         "type": "object"
       },
       "name": "explain_query"
     },
     {
-      "description": "Launch a full-result export job and return an artifact handle when complete (deprecated: use export_sql with task augmentation)",
+      "description": "Launch a full-result export job and return an artifact handle when complete",
       "inputSchema": {
         "$defs": {
           "ExecuteSqlExportFormat": {
@@ -360,7 +346,6 @@
         "required": [
           "sql"
         ],
-        "title": "ExportJobStartArgs",
         "type": "object"
       },
       "name": "export_job_start",
@@ -399,9 +384,6 @@
     },
     {
       "description": "Run a read query, export the full result, and return an artifact handle",
-      "execution": {
-        "taskSupport": "optional"
-      },
       "inputSchema": {
         "$defs": {
           "ExecuteSqlExportFormat": {
@@ -455,7 +437,6 @@
         "required": [
           "sql"
         ],
-        "title": "ExportJobStartArgs",
         "type": "object"
       },
       "name": "export_sql",
@@ -515,7 +496,6 @@
           "schema_name",
           "object_name"
         ],
-        "title": "GetObjectDetailsArgs",
         "type": "object"
       },
       "name": "get_object_details",
@@ -573,7 +553,6 @@
             ]
           }
         },
-        "title": "GetTopQueriesArgs",
         "type": "object"
       },
       "name": "get_top_queries",
@@ -611,7 +590,7 @@
       }
     },
     {
-      "description": "Cancel a running query or export job (deprecated: use MCP tasks/cancel)",
+      "description": "Cancel a running query or export job",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
@@ -622,7 +601,6 @@
         "required": [
           "job_id"
         ],
-        "title": "JobCancelArgsVNext",
         "type": "object"
       },
       "name": "job_cancel",
@@ -660,7 +638,7 @@
       }
     },
     {
-      "description": "Read generic job status and optionally wait or include the terminal result (deprecated: use MCP tasks/get and tasks/result)",
+      "description": "Read generic job status and optionally wait or include the terminal result",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
@@ -687,7 +665,6 @@
         "required": [
           "job_id"
         ],
-        "title": "JobStatusArgsVNext",
         "type": "object"
       },
       "name": "job_status",
@@ -797,7 +774,6 @@
         "required": [
           "schema_name"
         ],
-        "title": "ListObjectsArgs",
         "type": "object"
       },
       "name": "list_objects",
@@ -841,7 +817,6 @@
       "description": "List all schemas in the database",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "title": "ListSchemasArgs",
         "type": "object"
       },
       "name": "list_schemas",
@@ -893,13 +868,12 @@
         "required": [
           "job_id"
         ],
-        "title": "QueryCancelArgs",
         "type": "object"
       },
       "name": "query_cancel"
     },
     {
-      "description": "Launch a long-running structured read query job (deprecated: use query_sql with task augmentation)",
+      "description": "Launch a long-running structured read query job for clients that need explicit job control",
       "inputSchema": {
         "$defs": {
           "ReadQueryProfile": {
@@ -982,7 +956,6 @@
         "required": [
           "sql"
         ],
-        "title": "QuerySqlArgsVNext",
         "type": "object"
       },
       "name": "query_job_start",
@@ -1021,9 +994,6 @@
     },
     {
       "description": "Run a structured read query and return row objects",
-      "execution": {
-        "taskSupport": "optional"
-      },
       "inputSchema": {
         "$defs": {
           "ReadQueryProfile": {
@@ -1106,7 +1076,6 @@
         "required": [
           "sql"
         ],
-        "title": "QuerySqlArgsVNext",
         "type": "object"
       },
       "name": "query_sql",
@@ -1534,7 +1503,6 @@
             "type": "boolean"
           }
         },
-        "title": "QueryStartArgs",
         "type": "object"
       },
       "name": "query_start"
@@ -1936,7 +1904,6 @@
             ]
           }
         },
-        "title": "QueryStartAndWaitArgs",
         "type": "object"
       },
       "name": "query_start_and_wait"
@@ -1966,16 +1933,12 @@
         "required": [
           "job_id"
         ],
-        "title": "QueryStatusArgs",
         "type": "object"
       },
       "name": "query_status"
     },
     {
       "description": "Run a structured read query and return columns plus tuple rows",
-      "execution": {
-        "taskSupport": "optional"
-      },
       "inputSchema": {
         "$defs": {
           "ReadQueryProfile": {
@@ -2058,7 +2021,6 @@
         "required": [
           "sql"
         ],
-        "title": "QueryTuplesArgs",
         "type": "object"
       },
       "name": "query_tuples",
@@ -2124,9 +2086,6 @@
     },
     {
       "description": "Run a read query and return markdown for agent/operator inspection",
-      "execution": {
-        "taskSupport": "optional"
-      },
       "inputSchema": {
         "$defs": {
           "ReadQueryProfile": {
@@ -2209,7 +2168,6 @@
         "required": [
           "sql"
         ],
-        "title": "RenderSqlArgs",
         "type": "object"
       },
       "name": "render_sql"
@@ -2226,7 +2184,6 @@
         "required": [
           "session_id"
         ],
-        "title": "SessionIdArgs",
         "type": "object"
       },
       "name": "session_close"
@@ -2246,7 +2203,6 @@
             ]
           }
         },
-        "title": "SessionOpenArgs",
         "type": "object"
       },
       "name": "session_open"
@@ -2263,7 +2219,6 @@
         "required": [
           "session_id"
         ],
-        "title": "SessionIdArgs",
         "type": "object"
       },
       "name": "session_status"

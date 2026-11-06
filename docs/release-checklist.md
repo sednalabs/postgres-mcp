@@ -94,3 +94,12 @@ Before publishing:
 - Keep `execute_sql` hidden from discovery unless compatibility clients need it.
 - Prefer verified TLS for remote databases.
 - Keep rollback notes tied to exact commands, artifacts, and stable error codes.
+
+## Remote HTTP release gate
+
+- Require the Remote HTTP Contracts workflow on the exact head, including the
+  mandatory isolated TLS PostgreSQL fixture and negative OAuth tests.
+- Review the narrow tool catalogue and no-state boundaries independently.
+- Follow [the HTTPS acceptance checklist](http.md#chatgpt-connection-and-acceptance).
+- Record actual ChatGPT OAuth/discovery/query evidence separately from CI.
+- Do not equate a main-branch merge with deployment or real-client certification.

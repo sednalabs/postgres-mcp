@@ -26,6 +26,12 @@ const DEFAULT_ADVISOR_EXTERNAL_MAX_ATTEMPTS: usize = 3;
 const MAX_ADVISOR_EXTERNAL_MAX_ATTEMPTS: usize = 10;
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
+pub enum Transport {
+    Stdio,
+    Http,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum AccessMode {
     Unrestricted,
     Restricted,
@@ -252,6 +258,14 @@ impl AdvisorExternalConfig {
 #[command(name = "postgres-mcp")]
 #[command(about = "Rust stdio MCP server for PostgreSQL")]
 pub struct Cli {
+    /// Transport. HTTP requires --http-config and a trusted local HTTPS proxy.
+    #[arg(long, value_enum, default_value = "stdio")]
+    pub transport: Transport,
+
+    /// Operator-owned JSON configuration for the authenticated HTTP profile.
+    #[arg(long)]
+    pub http_config: Option<std::path::PathBuf>,
+
     /// Database connection URL. Optional if DATABASE_URI is set.
     pub database_url: Option<String>,
 
@@ -378,6 +392,8 @@ pub struct Cli {
 
 #[derive(Debug, Clone)]
 pub struct Settings {
+    pub transport: Transport,
+    pub http_config: Option<std::path::PathBuf>,
     pub database_url: Option<String>,
     pub access_mode: AccessMode,
     pub metadata_policy_mode: MetadataPolicyMode,
@@ -613,6 +629,8 @@ impl Settings {
         };
 
         Ok(Self {
+            transport: cli.transport,
+            http_config: cli.http_config,
             database_url,
             access_mode: cli.access_mode,
             metadata_policy_mode,

@@ -1,0 +1,78 @@
+name: Remote HTTP Contracts
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  remote-http:
+    name: OAuth HTTP and TLS database contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: 1.99.1
+          components: rustfmt, clippy
+      - name: Cache Rust
+        uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - name: Create disposable TLS PostgreSQL fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          tls="$RUNNER_TEMP/postgres-fixture-tls"
+          mkdir -p "$tls"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' \
+            -keyout "$tls/server.key" -out "$tls/server.crt" >/dev/null 2>&1
+          cp "$tls/server.crt" "$RUNNER_TEMP/postgres-fixture-ca.crt"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=untrusted-fixture' \
+            -keyout "$RUNNER_TEMP/untrusted-fixture.key" -out "$RUNNER_TEMP/untrusted-fixture.crt" >/dev/null 2>&1
+          printf 'local all all trust\nhostssl all all 0.0.0.0/0 trust\n' > "$tls/pg_hba.conf"
+          sudo chown 999:999 "$tls/server.key"
+          sudo chmod 600 "$tls/server.key"
+          # Trust authentication is limited to synthetic data on a disposable
+          # runner's loopback-published container; never use this in deployment.
+          docker run -d --name postgres-remote-fixture -p 127.0.0.1:55432:5432 \
+            -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=remote_fixture \
+            -v "$tls:/tls:ro" postgres:17-bookworm \
+            -c ssl=on -c ssl_cert_file=/tls/server.crt -c ssl_key_file=/tls/server.key \
+            -c hba_file=/tls/pg_hba.conf
+          for attempt in $(seq 1 60); do
+            if docker exec postgres-remote-fixture pg_isready -U postgres -d remote_fixture >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec -i postgres-remote-fixture psql -v ON_ERROR_STOP=1 -U postgres -d remote_fixture < tests/fixtures/remote_database.sql
+          python3 - <<'PY'
+          import json, os
+          ca = os.path.join(os.environ['RUNNER_TEMP'], 'postgres-fixture-ca.crt')
+          def uri(role):
+              return f'postgresql://{role}@localhost:55432/remote_fixture?sslmode=verify-full&sslrootcert={ca}'
+          roles = ['super', 'bypass', 'createdb', 'createrole', 'replication', 'member']
+          with open(os.environ['GITHUB_ENV'], 'a') as target:
+              target.write('POSTGRES_MCP_TEST_DATABASE_URI=' + uri('remote_fixture_reader') + '\n')
+              target.write('POSTGRES_MCP_TEST_DATABASE_ROLE=remote_fixture_reader\n')
+              target.write('POSTGRES_MCP_TEST_UNTRUSTED_DATABASE_URI=' + uri('remote_fixture_reader').replace(ca, os.path.join(os.environ['RUNNER_TEMP'], 'untrusted-fixture.crt')) + '\n')
+              target.write('POSTGRES_MCP_TEST_REJECTED_ROLES=' + json.dumps([{'role': 'remote_fixture_' + r, 'uri': uri('remote_fixture_' + r)} for r in roles]) + '\n')
+              target.write('POSTGRES_MCP_REQUIRE_DB_TESTS=1\n')
+          PY
+      - name: Check formatting and lint
+        run: |
+          cargo fmt --check
+          cargo clippy --locked --all-targets --all-features
+      - name: Run all contracts including mandatory TLS database tests
+        run: cargo test --locked --all-targets
+      - name: Remove disposable fixture
+        if: always()
+        run: docker rm -f postgres-remote-fixture || true

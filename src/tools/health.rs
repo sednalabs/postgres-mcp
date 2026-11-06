@@ -5,7 +5,6 @@ impl PostgresMcp {
     #[tool(
         name = "analyze_db_health",
         description = "Analyzes database health. Here are the available health checks: index, connection, vacuum, sequence, replication, buffer, constraint, all.",
-        execution(task_support = "optional"),
         output_schema = rmcp::handler::server::tool::schema_for_type::<StructuredObjectToolResultSchema>()
     )]
     async fn analyze_db_health(

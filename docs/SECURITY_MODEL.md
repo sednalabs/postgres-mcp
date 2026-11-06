@@ -6,9 +6,12 @@ while requiring explicit opt-in for mutating or compatibility-heavy paths.
 
 ## Transport Boundary
 
-The server uses stdio only. It does not expose an HTTP listener, bind a TCP
-port, or implement a network authentication layer. Authentication to PostgreSQL
-is handled by the database connection string and PostgreSQL itself.
+Stdio remains the default transport. Opt-in `--transport http` exposes only a
+separate bounded read-only profile behind OAuth and a trusted local HTTPS proxy.
+It never exposes the complete stdio router. See [Remote HTTPS](http.md) for exact
+principal, database-role, protocol, cancellation and deployment boundaries.
+Authentication to PostgreSQL remains server-side; HTTP callers cannot select a
+DSN, role or database.
 
 ## Credential Handling
 
