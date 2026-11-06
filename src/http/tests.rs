@@ -98,8 +98,12 @@ impl Fixture {
             None,
             None,
         );
-        let server =
-            RemotePostgresMcp::new(db, READ_SCOPE.into(), config.expected_database_role.clone());
+        let server = RemotePostgresMcp::new(
+            db,
+            READ_SCOPE.into(),
+            config.expected_database_role.clone(),
+            "http://127.0.0.1:8080/.well-known/oauth-protected-resource/mcp".into(),
+        );
         let (router, _) = build_router(config, server, auth, stop.clone());
         Self {
             router,
@@ -316,16 +320,55 @@ async fn legacy_sessions_are_principal_bound_and_current_requests_ignore_stale_i
     assert_eq!(response.status(), StatusCode::OK);
     let session = response.headers().get("mcp-session-id").unwrap().clone();
     let _ = payload(response).await;
-    let req = Request::builder()
-        .method("GET")
-        .uri("/mcp")
-        .header("host", "127.0.0.1:8080")
-        .header("accept", "text/event-stream")
-        .header("authorization", format!("Bearer {bob}"))
-        .header("mcp-session-id", session)
-        .body(Body::empty())
-        .unwrap();
-    assert_eq!(f.send(req).await.status(), StatusCode::NOT_FOUND);
+    let legacy = |method: &str, token: &str, body: Value| {
+        Request::builder()
+            .method(method)
+            .uri("/mcp")
+            .header("host", "127.0.0.1:8080")
+            .header("accept", "application/json, text/event-stream")
+            .header("content-type", "application/json")
+            .header("authorization", format!("Bearer {token}"))
+            .header("mcp-session-id", session.clone())
+            .header("mcp-protocol-version", "2025-11-25")
+            .body(Body::from(body.to_string()))
+            .unwrap()
+    };
+    let response = f
+        .send(legacy(
+            "POST",
+            &alice,
+            json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
+        ))
+        .await;
+    assert_eq!(response.status(), StatusCode::ACCEPTED);
+    let response = f
+        .send(legacy(
+            "POST",
+            &alice,
+            json!({"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}),
+        ))
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        payload(response).await["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    let response = f.send(legacy("POST", &alice, json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query","arguments":{"sql":"DELETE FROM secret","params":[]}}}))).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(payload(response).await["result"]["isError"], true);
+    for method in ["GET", "POST", "DELETE"] {
+        let response = f
+            .send(legacy(
+                method,
+                &bob,
+                json!({"jsonrpc":"2.0","id":4,"method":"tools/list","params":{}}),
+            ))
+            .await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
     let mut req = f.request("tools/list", json!({}), Some(&bob));
     req.headers_mut()
         .insert("mcp-session-id", HeaderValue::from_static("stale"));
@@ -357,7 +400,11 @@ async fn isolated_tls_authenticated_http_query_end_to_end() {
         let response = f.send(f.request("tools/call", json!({"name":"query","arguments":{"sql":"SELECT $1::text AS value, NULL::text AS absent","params":[subject]}}), Some(&token))).await;
         assert_eq!(response.status(), StatusCode::OK);
         let result = payload(response).await;
-        assert_ne!(result["result"]["isError"], true);
+        assert_ne!(
+            result["result"]["isError"], true,
+            "synthetic HTTP query failed: {:?}",
+            result["result"]["structuredContent"]
+        );
         assert_eq!(
             result["result"]["structuredContent"]["rows"][0]["value"],
             subject

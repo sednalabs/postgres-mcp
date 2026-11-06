@@ -64,6 +64,7 @@ pub struct RemotePostgresMcp {
     db: DbEngine,
     required_scope: String,
     expected_database_role: String,
+    resource_metadata_url: String,
 }
 
 #[derive(Deserialize)]
@@ -80,11 +81,17 @@ struct SchemaArgs {
 }
 
 impl RemotePostgresMcp {
-    pub fn new(db: DbEngine, required_scope: String, expected_database_role: String) -> Self {
+    pub fn new(
+        db: DbEngine,
+        required_scope: String,
+        expected_database_role: String,
+        resource_metadata_url: String,
+    ) -> Self {
         Self {
             db,
             required_scope,
             expected_database_role,
+            resource_metadata_url,
         }
     }
     fn authorized(&self, context: &RequestContext<RoleServer>) -> bool {
@@ -393,9 +400,19 @@ fn error_result(reason: &'static str) -> CallToolResult {
     result.is_error = Some(true);
     result
 }
-fn unauthorized_result() -> CallToolResult {
+fn auth_challenge(resource_metadata_url: &str) -> String {
+    format!(
+        "Bearer error=\"insufficient_scope\", error_description=\"An authorized postgres:read connection is required\", scope=\"postgres:read\", resource_metadata=\"{resource_metadata_url}\""
+    )
+}
+fn unauthorized_result(resource_metadata_url: &str) -> CallToolResult {
     let mut result = error_result("unauthorized");
-    result.meta = Some(serde_json::from_value(json!({"mcp/www_authenticate":["Bearer error=\"insufficient_scope\", scope=\"postgres:read\""]})).expect("static auth metadata"));
+    result.meta = Some(
+        serde_json::from_value(
+            json!({"mcp/www_authenticate":[auth_challenge(resource_metadata_url)]}),
+        )
+        .expect("static auth metadata"),
+    );
     result
 }
 
@@ -417,7 +434,7 @@ impl ServerHandler for RemotePostgresMcp {
             return Err(rmcp::ErrorData::invalid_request(
                 "unauthorized",
                 Some(
-                    json!({"reason":"unauthorized","_meta":{"mcp/www_authenticate":["Bearer error=\"insufficient_scope\", scope=\"postgres:read\""]}}),
+                    json!({"reason":"unauthorized","_meta":{"mcp/www_authenticate":[auth_challenge(&self.resource_metadata_url)]}}),
                 ),
             ));
         }
@@ -435,7 +452,7 @@ impl ServerHandler for RemotePostgresMcp {
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, rmcp::ErrorData> {
         if !self.authorized(&context) {
-            return Ok(unauthorized_result().into());
+            return Ok(unauthorized_result(&self.resource_metadata_url).into());
         }
         if request.request_state.is_some() || request.input_responses.is_some() {
             return Ok(error_result("state_unsupported").into());
@@ -460,6 +477,7 @@ mod tests {
             DbEngine::new(None, AccessMode::Restricted, false, None, None, None),
             "postgres:read".into(),
             "reader".into(),
+            "https://postgres.example/.well-known/oauth-protected-resource/mcp".into(),
         )
     }
     fn column() -> Vec<QueryColumn> {
@@ -682,9 +700,16 @@ mod tests {
         for secret in ["SELECT", "database_url", "reader", "PostgreSQL", "sqlstate"] {
             assert!(!wire.contains(secret));
         }
-        let auth = unauthorized_result();
+        let auth = unauthorized_result(
+            "https://postgres.example/.well-known/oauth-protected-resource/mcp",
+        );
         assert_eq!(auth.is_error, Some(true));
-        assert!(serde_json::to_value(auth).unwrap()["_meta"]["mcp/www_authenticate"].is_array());
+        let auth = serde_json::to_value(auth).unwrap();
+        let challenge = auth["_meta"]["mcp/www_authenticate"][0].as_str().unwrap();
+        assert!(challenge.contains("error=\"insufficient_scope\""));
+        assert!(challenge.contains("error_description=\""));
+        assert!(challenge.contains("scope=\"postgres:read\""));
+        assert!(challenge.contains("resource_metadata=\"https://postgres.example/.well-known/oauth-protected-resource/mcp\""));
     }
 }
 

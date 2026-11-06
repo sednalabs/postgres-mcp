@@ -33,10 +33,19 @@ jobs:
           set -euo pipefail
           tls="$RUNNER_TEMP/postgres-fixture-tls"
           mkdir -p "$tls"
+          # A distinct CA signs a CA:false server leaf, as WebPKI requires.
           openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
-            -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' \
-            -keyout "$tls/server.key" -out "$tls/server.crt" >/dev/null 2>&1
-          cp "$tls/server.crt" "$RUNNER_TEMP/postgres-fixture-ca.crt"
+            -subj '/CN=Postgres fixture CA' -addext 'basicConstraints=critical,CA:TRUE' \
+            -addext 'keyUsage=critical,keyCertSign,cRLSign' \
+            -keyout "$RUNNER_TEMP/postgres-fixture-ca.key" -out "$RUNNER_TEMP/postgres-fixture-ca.crt" >/dev/null 2>&1
+          openssl req -new -newkey rsa:2048 -nodes -subj '/CN=localhost' \
+            -keyout "$tls/server.key" -out "$RUNNER_TEMP/postgres-fixture.csr" >/dev/null 2>&1
+          printf '%s\n' 'basicConstraints=critical,CA:FALSE' 'keyUsage=critical,digitalSignature,keyEncipherment' \
+            'extendedKeyUsage=serverAuth' 'subjectAltName=DNS:localhost,IP:127.0.0.1' > "$RUNNER_TEMP/postgres-fixture.ext"
+          openssl x509 -req -days 1 -in "$RUNNER_TEMP/postgres-fixture.csr" \
+            -CA "$RUNNER_TEMP/postgres-fixture-ca.crt" -CAkey "$RUNNER_TEMP/postgres-fixture-ca.key" -CAcreateserial \
+            -extfile "$RUNNER_TEMP/postgres-fixture.ext" -out "$tls/server.crt" >/dev/null 2>&1
+          openssl verify -purpose sslserver -CAfile "$RUNNER_TEMP/postgres-fixture-ca.crt" "$tls/server.crt"
           openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=untrusted-fixture' \
             -keyout "$RUNNER_TEMP/untrusted-fixture.key" -out "$RUNNER_TEMP/untrusted-fixture.crt" >/dev/null 2>&1
           printf 'local all all trust\nhostssl all all 0.0.0.0/0 trust\n' > "$tls/pg_hba.conf"

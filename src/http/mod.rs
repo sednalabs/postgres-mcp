@@ -161,8 +161,15 @@ pub async fn serve(settings: Settings) -> Result<(), String> {
         Some(Duration::from_secs(1)),
     );
     let authentication = auth::build(&config).await?;
-    let server =
-        RemotePostgresMcp::new(db, READ_SCOPE.into(), config.expected_database_role.clone());
+    let server = RemotePostgresMcp::new(
+        db,
+        READ_SCOPE.into(),
+        config.expected_database_role.clone(),
+        format!(
+            "{}/.well-known/oauth-protected-resource/mcp",
+            config.public_base_url()?
+        ),
+    );
     let stop = CancellationToken::new();
     let (router, custody) = build_router(config.clone(), server, authentication, stop.clone());
     let listener = tokio::net::TcpListener::bind(config.bind)

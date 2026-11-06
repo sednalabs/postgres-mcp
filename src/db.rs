@@ -440,6 +440,19 @@ impl fmt::Display for DbError {
 
 impl StdError for DbError {}
 
+/// Preserve stdio's explicit/default plaintext connections after parsing the DSN.
+///
+/// The broad toolkit policy is selected only for exact `Disable`; this adapter
+/// never authorizes opportunistic TLS fallback (`Prefer`). HTTP must not use it:
+/// remote connections require verified TLS and `DisallowAll` instead.
+pub fn stdio_tls_policy(mode: PgTlsMode, allow_insecure_tls: bool) -> PgInsecureTlsPolicy {
+    match mode {
+        PgTlsMode::Disable => PgInsecureTlsPolicy::AllowRequireAndPrefer,
+        PgTlsMode::InsecureRequire if allow_insecure_tls => PgInsecureTlsPolicy::AllowRequireOnly,
+        _ => PgInsecureTlsPolicy::DisallowAll,
+    }
+}
+
 impl DbEngine {
     pub fn new(
         database_url: Option<String>,
@@ -650,11 +663,7 @@ impl DbEngine {
                  Prefer sslmode=verify-full (or verify-ca) with trusted roots."
             );
         }
-        let insecure_policy = if self.allow_insecure_tls {
-            PgInsecureTlsPolicy::AllowRequireOnly
-        } else {
-            PgInsecureTlsPolicy::DisallowAll
-        };
+        let insecure_policy = stdio_tls_policy(connect.tls_mode(), self.allow_insecure_tls);
 
         let (client, connection) = connect
             .connect_with_policy(insecure_policy)
@@ -721,11 +730,7 @@ impl DbEngine {
                  Prefer sslmode=verify-full (or verify-ca) with trusted roots."
             );
         }
-        let insecure_policy = if self.allow_insecure_tls {
-            PgInsecureTlsPolicy::AllowRequireOnly
-        } else {
-            PgInsecureTlsPolicy::DisallowAll
-        };
+        let insecure_policy = stdio_tls_policy(connect.tls_mode(), self.allow_insecure_tls);
 
         let (client, connection) = connect
             .connect_with_policy(insecure_policy)
@@ -835,11 +840,7 @@ impl DbEngine {
                  Prefer sslmode=verify-full (or verify-ca) with trusted roots."
             );
         }
-        let insecure_policy = if self.allow_insecure_tls {
-            PgInsecureTlsPolicy::AllowRequireOnly
-        } else {
-            PgInsecureTlsPolicy::DisallowAll
-        };
+        let insecure_policy = stdio_tls_policy(connect.tls_mode(), self.allow_insecure_tls);
 
         let (client, connection) = connect
             .connect_with_policy(insecure_policy)
@@ -893,11 +894,7 @@ impl DbEngine {
                  Prefer sslmode=verify-full (or verify-ca) with trusted roots."
             );
         }
-        let insecure_policy = if self.allow_insecure_tls {
-            PgInsecureTlsPolicy::AllowRequireOnly
-        } else {
-            PgInsecureTlsPolicy::DisallowAll
-        };
+        let insecure_policy = stdio_tls_policy(connect.tls_mode(), self.allow_insecure_tls);
 
         let (client, connection) = connect
             .connect_with_policy(insecure_policy)
@@ -2365,6 +2362,58 @@ mod tests {
     use std::time::Duration;
     use std::time::{SystemTime, UNIX_EPOCH};
     use tokio_postgres::SimpleQueryMessage;
+
+    #[test]
+    fn stdio_tls_policy_preserves_plaintext_and_verified_modes() {
+        for dsn in [
+            "postgresql://localhost/example",
+            "postgresql://localhost/example?sslmode=disable",
+            "host=localhost dbname=example",
+            "host=localhost dbname=example sslmode=disable",
+            "postgresql://localhost/example?sslmode=verify-full",
+            "host=localhost dbname=example sslmode=verify-ca",
+        ] {
+            let config = super::PgConnectionConfig::from_dsn(dsn).unwrap();
+            for allow in [false, true] {
+                config
+                    .validate_tls_policy(super::stdio_tls_policy(config.tls_mode(), allow))
+                    .expect("stdio local/plaintext and verified modes remain usable");
+            }
+        }
+    }
+
+    #[test]
+    fn stdio_tls_policy_requires_explicit_require_override_and_never_prefer() {
+        for mode in ["require", "prefer"] {
+            for dsn in [
+                format!("postgresql://localhost/example?sslmode={mode}"),
+                format!("host=localhost dbname=example sslmode={mode}"),
+            ] {
+                let config = super::PgConnectionConfig::from_dsn(&dsn).unwrap();
+                for allow in [false, true] {
+                    let permitted = config
+                        .validate_tls_policy(super::stdio_tls_policy(config.tls_mode(), allow))
+                        .is_ok();
+                    assert_eq!(permitted, mode == "require" && allow);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn remote_tls_policy_still_rejects_all_unverified_modes() {
+        for mode in ["disable", "require", "prefer"] {
+            let config = super::PgConnectionConfig::from_dsn(&format!(
+                "postgresql://localhost/example?sslmode={mode}"
+            ))
+            .unwrap();
+            assert!(
+                config
+                    .validate_tls_policy(super::PgInsecureTlsPolicy::DisallowAll)
+                    .is_err()
+            );
+        }
+    }
 
     fn default_query_budget() -> (Option<Duration>, Option<Duration>, Option<Duration>) {
         (

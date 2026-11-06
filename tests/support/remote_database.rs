@@ -19,6 +19,7 @@ fn fixture() -> Option<RemotePostgresMcp> {
                 ),
                 "postgres:read".into(),
                 role,
+                "https://postgres.example/.well-known/oauth-protected-resource/mcp".into(),
             ))
         }
         _ if std::env::var("POSTGRES_MCP_REQUIRE_DB_TESTS").as_deref() == Ok("1") => {
@@ -35,7 +36,8 @@ fn payload(result: CallToolResult) -> Value {
     assert_ne!(
         result.is_error,
         Some(true),
-        "fixture query unexpectedly failed (details redacted)"
+        "fixture query unexpectedly failed: {:?}",
+        result.structured_content
     );
     result.structured_content.expect("structured response")
 }
@@ -84,14 +86,16 @@ async fn isolated_tls_large_wire_values_rows_and_nested_cells_are_bounded() {
 async fn isolated_tls_connection_is_fresh_and_read_only_even_with_unrestricted_engine() {
     let Some(s) = fixture() else { return };
     let query = "SELECT pg_catalog.pg_backend_pid() AS pid, pg_catalog.current_setting('transaction_read_only') AS read_only";
-    let a =
-        s.db.execute_remote_read(query, &[], &s.expected_database_role)
-            .await
-            .unwrap_or_else(|_| panic!("fixture connection failed (details redacted)"));
-    let b =
-        s.db.execute_remote_read(query, &[], &s.expected_database_role)
-            .await
-            .unwrap_or_else(|_| panic!("fixture connection failed (details redacted)"));
+    let a = s
+        .db
+        .execute_remote_read(query, &[], &s.expected_database_role)
+        .await
+        .unwrap_or_else(|err| panic!("fixture connection failed: {}/{}", err.code(), err.reason()));
+    let b = s
+        .db
+        .execute_remote_read(query, &[], &s.expected_database_role)
+        .await
+        .unwrap_or_else(|err| panic!("fixture connection failed: {}/{}", err.code(), err.reason()));
     assert_eq!(a["rows"][0]["read_only"], "on");
     assert_eq!(b["rows"][0]["read_only"], "on");
     assert_ne!(a["rows"][0]["pid"], b["rows"][0]["pid"]);
@@ -127,6 +131,10 @@ async fn isolated_tls_backend_errors_are_sanitized_and_server_deadline_is_finite
     assert!(!wire.contains("does not exist"));
     // Internal primitive deliberately bypasses lexical pg_sleep rejection to
     // verify its independent server-side statement timeout in an isolated DB.
+    s.db.execute_remote_read("SELECT 1", &[], &s.expected_database_role)
+        .await
+        .unwrap_or_else(|err| panic!("fixture connection failed: {}/{}", err.code(), err.reason()));
+    let start = std::time::Instant::now();
     let outcome = tokio::time::timeout(
         Duration::from_secs(7),
         s.db.execute_remote_read(
@@ -137,8 +145,12 @@ async fn isolated_tls_backend_errors_are_sanitized_and_server_deadline_is_finite
     )
     .await;
     assert!(
-        matches!(outcome, Ok(Err(_))),
-        "server statement timeout must terminate work"
+        matches!(outcome, Ok(Err(ref err)) if err.sqlstate() == Some("57014")),
+        "server statement timeout must terminate work with PostgreSQL query_canceled"
+    );
+    assert!(
+        start.elapsed() >= Duration::from_secs(4),
+        "must execute long enough to exercise the fixed five-second statement budget"
     );
 }
 
@@ -204,7 +216,13 @@ async fn isolated_tls_cancellation_bounds_backend_activity() {
         let status =
             s.db.execute_remote_read(activity_sql, &params, &s.expected_database_role)
                 .await
-                .unwrap_or_else(|_| panic!("fixture activity inspection failed"));
+                .unwrap_or_else(|err| {
+                    panic!(
+                        "fixture activity inspection failed: {}/{}",
+                        err.code(),
+                        err.reason()
+                    )
+                });
         if status["rows"][0]["active"].as_u64().unwrap_or(0) > 0 {
             observed = true;
             break;
@@ -224,7 +242,13 @@ async fn isolated_tls_cancellation_bounds_backend_activity() {
             let status =
                 s.db.execute_remote_read(activity_sql, &params, &s.expected_database_role)
                     .await
-                    .unwrap_or_else(|_| panic!("fixture activity inspection failed"));
+                    .unwrap_or_else(|err| {
+                        panic!(
+                            "fixture activity inspection failed: {}/{}",
+                            err.code(),
+                            err.reason()
+                        )
+                    });
             if status["rows"][0]["active"].as_u64() == Some(0) {
                 break;
             }
@@ -250,6 +274,16 @@ async fn isolated_tls_untrusted_certificate_is_rejected() {
         eprintln!("SKIP: untrusted-certificate fixture URI is not provided");
         return;
     };
+    // Prove the same fixture is reachable with its trusted CA first.
+    s.db.execute_remote_read("SELECT 1", &[], &s.expected_database_role)
+        .await
+        .unwrap_or_else(|err| {
+            panic!(
+                "trusted fixture connection failed: {}/{}",
+                err.code(),
+                err.reason()
+            )
+        });
     let db = DbEngine::new(
         Some(uri),
         crate::config::AccessMode::Restricted,
@@ -264,7 +298,7 @@ async fn isolated_tls_untrusted_certificate_is_rejected() {
     )
     .await;
     assert!(
-        matches!(result, Ok(Err(_))),
-        "an untrusted certificate must not establish a usable connection"
+        matches!(result, Ok(Err(ref err)) if err.code() == "DB_CONNECT_FAILED" && err.message().to_ascii_lowercase().contains("tls")),
+        "an untrusted certificate must fail in the TLS handshake, not during DSN parsing or queries"
     );
 }

@@ -20,7 +20,10 @@ allow = [
   "Unicode-3.0",
   "Zlib",
 ]
-exceptions = []
+# Mozilla-derived trust anchors used by rustls-platform-verifier on supported
+# targets. Narrow package/version allowance, aligned with the toolkit policy;
+# not a general acceptance of this license or any advisory suppression.
+exceptions = [{ name = "webpki-root-certs", version = "=1.0.11", allow = ["CDLA-Permissive-2.0"] }]
 
 [bans]
 multiple-versions = "allow"
@@ -34,4 +37,9 @@ skip-tree = []
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = ["https://github.com/sednalabs/mcp-toolkit-rs"]
+# Root manifest pins both sources to reviewed immutable revisions.
+required-git-spec = "rev"
+allow-git = [
+  "https://github.com/sednalabs/mcp-toolkit-rs",
+  "https://github.com/sednalabs/rust-sdk",
+]
