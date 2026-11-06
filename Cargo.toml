@@ -8,26 +8,48 @@ repository = "https://github.com/sednalabs/postgres-mcp"
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.100"
+anyhow = "1.0.103"
 clap = { version = "4.5.59", features = ["derive"] }
 regex = "1.11.1"
-rmcp = { version = "1.1.0", features = ["server", "macros", "schemars", "transport-io"] }
+rmcp = { version = "=3.9.0", features = ["server", "macros", "schemars", "transport-io"] }
 schemars = "1.2.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 sha2 = "0.10.9"
 getrandom = "0.3.4"
-tokio = { version = "1.49.0", features = ["rt-multi-thread", "macros", "signal", "sync", "time", "process", "io-util"] }
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "signal", "sync", "time", "process", "io-util", "net"] }
 tokio-postgres = { version = "0.7.15", features = ["array-impls", "with-serde_json-1"] }
 time = { version = "0.3.49", features = ["formatting"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "fmt"] }
 
-mcp-toolkit-observability = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "99a17c957049723fcc4cc6239068a3a5c42a751c", package = "mcp-toolkit-observability", features = ["tracing-bridge"] }
-mcp-toolkit-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "99a17c957049723fcc4cc6239068a3a5c42a751c", package = "mcp-toolkit-core" }
-mcp-toolkit-postgres = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "1cf322071d84e27fe3002ee53198353af0ea6513", package = "mcp-toolkit-postgres" }
-mcp-toolkit-policy-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "99a17c957049723fcc4cc6239068a3a5c42a751c", package = "mcp-toolkit-policy-core" }
-mcp-toolkit-policy-runtime = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "99a17c957049723fcc4cc6239068a3a5c42a751c", package = "mcp-toolkit-policy-runtime" }
+mcp-toolkit-observability = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", package = "mcp-toolkit-observability", features = ["tracing-bridge"] }
+mcp-toolkit-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", package = "mcp-toolkit-core" }
+mcp-toolkit-postgres = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", package = "mcp-toolkit-postgres" }
+mcp-toolkit-policy-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", package = "mcp-toolkit-policy-core" }
+mcp-toolkit-policy-runtime = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", package = "mcp-toolkit-policy-runtime" }
+
+axum = "0.8.8"
+http = "1.3.1"
+http-body = "1.0.1"
+http-body-util = "0.1.3"
+bytes = "1.10.1"
+tokio-util = "0.7.17"
+url = "2.5.4"
+futures-util = "0.3.31"
+mcp-toolkit-server = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", features = ["http", "auth"] }
+mcp-toolkit-tasks = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4" }
+mcp-toolkit-http = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", features = ["session"] }
+mcp-toolkit-auth = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4" }
+
+# Root patches are required: dependency workspace patches do not propagate.
+# These immutable SDK revisions include verified Streamable HTTP hardening.
+[patch.crates-io]
+rmcp = { git = "https://github.com/sednalabs/rust-sdk", rev = "31e83f4f752001d2afc386254a4d17b5eab5f419" }
+rmcp-macros = { git = "https://github.com/sednalabs/rust-sdk", rev = "31e83f4f752001d2afc386254a4d17b5eab5f419" }
 
 [dev-dependencies]
-mcp-toolkit-testing = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "99a17c957049723fcc4cc6239068a3a5c42a751c", package = "mcp-toolkit-testing" }
+mcp-toolkit-testing = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", package = "mcp-toolkit-testing" }
+jsonwebtoken = { version = "11", features = ["aws_lc_rs"] }
+base64 = "0.23.1"
+tower = { version = "0.5", features = ["util"] }

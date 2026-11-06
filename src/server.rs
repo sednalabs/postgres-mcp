@@ -9,6 +9,7 @@
 //! * Tool execution delegates DB safety checks to `db` and `sql_safety` modules.
 
 use std::future::Future;
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -19,22 +20,22 @@ use std::collections::{HashMap, VecDeque};
 use mcp_toolkit_core::rmcp_models;
 use mcp_toolkit_core::tool_schema::tool_schema_snapshot_value;
 use mcp_toolkit_policy_runtime::CapabilityGuard;
+use mcp_toolkit_tasks::{TaskAuthority, TaskAuthorityConfig, TaskAuthorityError, TaskPrincipal};
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::tool::ToolCallContext;
 use rmcp::model::{
-    CallToolRequestParams, CallToolResult, CancelTaskParams, CancelTaskResult, CreateTaskResult,
-    GetTaskInfoParams, GetTaskPayloadResult, GetTaskResult, GetTaskResultParams, Implementation,
-    ListResourcesResult, ListTasksResult, ListToolsResult, PaginatedRequestParams,
-    ProgressNotificationParam, ProtocolVersion, RawResource, ReadResourceRequestParams,
-    ReadResourceResult, Resource, ResourceContents, ServerCapabilities, ServerInfo, Task,
-    TaskStatus, Tool,
+    CallToolRequestParams, CallToolResponse, CallToolResult, CancelTaskParams, CreateTaskResult,
+    GetTaskParams, GetTaskResult, Implementation, ListResourcesResult, ListToolsResult,
+    PaginatedRequestParams, ProgressNotificationParam, ProtocolVersion, ReadResourceRequestParams,
+    ReadResourceResponse, ReadResourceResult, Resource, ResourceContents, ServerCapabilities,
+    ServerConfig, Tool, UpdateTaskParams,
 };
 use rmcp::service::RequestContext;
+use rmcp::task_manager::{TaskExit, TaskOptions};
 use rmcp::{RoleServer, ServerHandler};
 use serde_json::Value;
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use time::OffsetDateTime;
 use tokio::sync::Notify;
 use tokio::task::AbortHandle;
 
@@ -70,13 +71,6 @@ fn unix_time_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis() as u64)
         .unwrap_or(0)
-}
-
-fn iso8601_from_unix_ms(value: u64) -> String {
-    OffsetDateTime::from_unix_timestamp_nanos((value as i128) * 1_000_000)
-        .unwrap_or(OffsetDateTime::UNIX_EPOCH)
-        .format(&time::format_description::well_known::Rfc3339)
-        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
 }
 
 fn serialize_call_tool_result(result: &CallToolResult) -> Value {
@@ -940,6 +934,7 @@ pub struct PostgresMcp {
     pub response_output_mode_auto_tabular: ResponseAutoTabularMode,
     pub response_page_size: usize,
     pub query_jobs: Arc<QueryJobRegistry>,
+    protocol_tasks: TaskAuthority,
     pub export_artifacts: Arc<ExportArtifactRegistry>,
     pub pinned_sessions: Arc<PinnedSessionRegistry>,
     pub pagination_cursor_ttl: Duration,
@@ -987,6 +982,8 @@ impl PostgresMcp {
         advisor_external: AdvisorExternalConfig,
     ) -> Self {
         let tool_router = Self::tool_router_postgres();
+        let query_jobs = Arc::new(QueryJobRegistry::new());
+        let protocol_tasks = Self::new_protocol_task_authority(query_jobs.max_entries);
         Self {
             db,
             extension_guard: Arc::new(CapabilityGuard::new(
@@ -1012,7 +1009,8 @@ impl PostgresMcp {
             response_output_mode,
             response_output_mode_auto_tabular,
             response_page_size: response_page_size.max(1),
-            query_jobs: Arc::new(QueryJobRegistry::new()),
+            query_jobs,
+            protocol_tasks,
             export_artifacts: Arc::new(ExportArtifactRegistry::new()),
             pinned_sessions: Arc::new(PinnedSessionRegistry::new()),
             pagination_cursor_ttl: DEFAULT_PAGINATION_CURSOR_TTL,
@@ -1054,35 +1052,6 @@ impl PostgresMcp {
                 | "analyze_workload_indexes"
                 | "export_sql"
         )
-    }
-
-    fn task_for_snapshot(&self, snapshot: &QueryJobSnapshot) -> Task {
-        let status = match snapshot.state {
-            QueryJobState::Pending | QueryJobState::Running => TaskStatus::Working,
-            QueryJobState::Succeeded => TaskStatus::Completed,
-            QueryJobState::Failed => TaskStatus::Failed,
-            QueryJobState::Canceled => TaskStatus::Cancelled,
-        };
-        let last_updated_unix_ms = snapshot
-            .finished_at_unix_ms
-            .or(snapshot.started_at_unix_ms)
-            .unwrap_or(snapshot.created_at_unix_ms);
-        let status_message = match snapshot.state {
-            QueryJobState::Pending => Some(format!("queued {}", snapshot.kind)),
-            QueryJobState::Running => Some(format!("running {}", snapshot.kind)),
-            QueryJobState::Succeeded => Some(format!("completed {}", snapshot.kind)),
-            QueryJobState::Failed => Some(format!("failed {}", snapshot.kind)),
-            QueryJobState::Canceled => Some(format!("cancelled {}", snapshot.kind)),
-        };
-        Task::new(
-            snapshot.job_id.clone(),
-            status,
-            iso8601_from_unix_ms(snapshot.created_at_unix_ms),
-            iso8601_from_unix_ms(last_updated_unix_ms),
-        )
-        .with_poll_interval(1000)
-        .with_ttl(self.query_jobs.terminal_ttl.as_millis() as u64)
-        .with_status_message(status_message.unwrap_or_default())
     }
 
     async fn emit_progress(
@@ -1167,17 +1136,14 @@ impl PostgresMcp {
             .list()
             .into_iter()
             .map(|artifact| {
-                Resource::new(
-                    RawResource::new(&artifact.uri, format!("export {}", artifact.handle))
-                        .with_title(format!("Export artifact {}", artifact.handle))
-                        .with_description(format!(
-                            "Query export artifact in {} format ({} rows)",
-                            artifact.format, artifact.row_count
-                        ))
-                        .with_mime_type(&artifact.mime_type)
-                        .with_size(artifact.bytes.min(u32::MAX as u64) as u32),
-                    None,
-                )
+                Resource::new(&artifact.uri, format!("export {}", artifact.handle))
+                    .with_title(format!("Export artifact {}", artifact.handle))
+                    .with_description(format!(
+                        "Query export artifact in {} format ({} rows)",
+                        artifact.format, artifact.row_count
+                    ))
+                    .with_mime_type(&artifact.mime_type)
+                    .with_size(artifact.bytes)
             })
             .collect()
     }
@@ -1541,9 +1507,9 @@ pub(crate) fn sanitize_tool_schemas_for_mcp(tools: Vec<Tool>) -> Vec<Tool> {
 }
 
 impl ServerHandler for PostgresMcp {
-    fn get_info(&self) -> ServerInfo {
+    fn get_info(&self) -> ServerConfig {
         rmcp_models::server_info(
-            ProtocolVersion::V_2024_11_05,
+            ProtocolVersion::LATEST,
             ServerCapabilities::builder()
                 .enable_tools()
                 .enable_resources()
@@ -1557,129 +1523,13 @@ impl ServerHandler for PostgresMcp {
         )
     }
 
-    fn enqueue_task(
-        &self,
-        mut request: CallToolRequestParams,
-        context: RequestContext<RoleServer>,
-    ) -> impl Future<Output = Result<CreateTaskResult, rmcp::ErrorData>> + Send + '_ {
-        async move {
-            let tool_name = request.name.to_string();
-            if !Self::task_enabled_tool(&tool_name) {
-                return Err(crate::McpError::invalid_params(
-                    format!("tool `{tool_name}` does not support task augmentation"),
-                    None,
-                ));
-            }
-
-            let query_hash = telemetry_fingerprint(&format!(
-                "{}|{}",
-                tool_name,
-                serde_json::to_string(&request.arguments).unwrap_or_default()
-            ));
-            let job = self
-                .query_jobs
-                .create_task(&tool_name, &query_hash)
-                .map_err(|err| crate::McpError::internal_error(err.message().to_string(), None))?;
-
-            let progress_token = request
-                .meta
-                .as_ref()
-                .and_then(|meta| meta.get_progress_token());
-            let task = self.task_for_snapshot(&job.snapshot());
-
-            let server = self.clone();
-            let job_handle = job.clone();
-            let mut task_context = RequestContext::new(context.id.clone(), context.peer.clone());
-            task_context.meta = context.meta.clone();
-            task_context.extensions = context.extensions.clone();
-            let mut task_progress_context =
-                RequestContext::new(context.id.clone(), context.peer.clone());
-            task_progress_context.meta = context.meta.clone();
-            task_progress_context.extensions = context.extensions.clone();
-            request.task = None;
-
-            tokio::spawn(async move {
-                PostgresMcp::emit_progress(
-                    &task_progress_context,
-                    progress_token.clone(),
-                    5.0,
-                    "queued",
-                )
-                .await;
-                job_handle.mark_running();
-                PostgresMcp::emit_progress(
-                    &task_progress_context,
-                    progress_token.clone(),
-                    35.0,
-                    "executing",
-                )
-                .await;
-                let result = match server
-                    .tool_router
-                    .call(ToolCallContext::new(&server, request, task_context))
-                    .await
-                {
-                    Ok(result) => result,
-                    Err(err) => {
-                        let error = err.to_string();
-                        CallToolResult::structured(json!({
-                            "ok": false,
-                            "error": {
-                                "error": error,
-                                "code": "TASK_EXECUTION_FAILED",
-                                "reason": "task_execution_failed",
-                            },
-                            "meta": {"elapsed_ms": 0}
-                        }))
-                    }
-                };
-                let succeeded = extract_contract_error_summary(&result).is_none()
-                    && result.is_error != Some(true);
-                let structured = result.structured_content.clone().unwrap_or_else(|| {
-                    json!({
-                        "ok": succeeded,
-                        "meta": {
-                            "elapsed_ms": 0
-                        }
-                    })
-                });
-                PostgresMcp::emit_progress(
-                    &task_progress_context,
-                    progress_token.clone(),
-                    85.0,
-                    "finalizing",
-                )
-                .await;
-                let state = if succeeded {
-                    QueryJobState::Succeeded
-                } else {
-                    QueryJobState::Failed
-                };
-                job_handle.complete_structured(state, structured, result);
-                PostgresMcp::emit_progress(
-                    &task_progress_context,
-                    progress_token,
-                    100.0,
-                    if succeeded { "completed" } else { "failed" },
-                )
-                .await;
-            });
-
-            Ok(CreateTaskResult::new(task))
-        }
-    }
-
     fn list_tools(
         &self,
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> impl Future<Output = Result<ListToolsResult, rmcp::ErrorData>> + Send + '_ {
         let tools = sanitize_tool_schemas_for_mcp(self.discoverable_tools());
-        std::future::ready(Ok(ListToolsResult {
-            meta: None,
-            tools,
-            next_cursor: None,
-        }))
+        std::future::ready(Ok(ListToolsResult::with_all_items(tools)))
     }
 
     fn list_resources(
@@ -1688,120 +1538,150 @@ impl ServerHandler for PostgresMcp {
         _context: RequestContext<RoleServer>,
     ) -> impl Future<Output = Result<ListResourcesResult, rmcp::ErrorData>> + Send + '_ {
         let resources = self.export_resources();
-        std::future::ready(Ok(ListResourcesResult {
-            meta: None,
-            resources,
-            next_cursor: None,
-        }))
+        std::future::ready(Ok(ListResourcesResult::with_all_items(resources)))
     }
 
     fn read_resource(
         &self,
         request: ReadResourceRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> impl Future<Output = Result<ReadResourceResult, rmcp::ErrorData>> + Send + '_ {
-        std::future::ready(self.read_export_resource_uri(&request.uri))
+    ) -> impl Future<Output = Result<ReadResourceResponse, rmcp::ErrorData>> + Send + '_ {
+        std::future::ready(self.read_export_resource_uri(&request.uri).map(Into::into))
     }
 
-    fn list_tasks(
+    fn get_task(
         &self,
-        _request: Option<PaginatedRequestParams>,
-        _context: RequestContext<RoleServer>,
-    ) -> impl Future<Output = Result<ListTasksResult, rmcp::ErrorData>> + Send + '_ {
-        std::future::ready(Ok(ListTasksResult::new(
-            self.query_jobs
-                .list_tasks()
-                .into_iter()
-                .map(|snapshot| self.task_for_snapshot(&snapshot))
-                .collect(),
-        )))
-    }
-
-    fn get_task_info(
-        &self,
-        request: GetTaskInfoParams,
+        request: GetTaskParams,
         _context: RequestContext<RoleServer>,
     ) -> impl Future<Output = Result<GetTaskResult, rmcp::ErrorData>> + Send + '_ {
-        std::future::ready(match self.query_jobs.get(&request.task_id) {
-            Some(job) => {
-                let snapshot = job.snapshot();
-                if !snapshot.task_managed {
-                    Err(crate::McpError::invalid_params("task not found", None))
-                } else {
-                    Ok(GetTaskResult {
-                        meta: None,
-                        task: self.task_for_snapshot(&snapshot),
-                    })
-                }
-            }
-            None => Err(crate::McpError::invalid_params("task not found", None)),
-        })
+        std::future::ready(self.protocol_task(&request.task_id).map(GetTaskResult::new))
     }
 
-    fn get_task_result(
+    fn update_task(
         &self,
-        request: GetTaskResultParams,
+        request: UpdateTaskParams,
         _context: RequestContext<RoleServer>,
-    ) -> impl Future<Output = Result<GetTaskPayloadResult, rmcp::ErrorData>> + Send + '_ {
-        std::future::ready(match self.query_jobs.get(&request.task_id) {
-            Some(job) => {
-                let snapshot = job.snapshot();
-                if !snapshot.task_managed {
-                    Err(crate::McpError::invalid_params("task not found", None))
-                } else if !snapshot.state.is_terminal() {
-                    Err(crate::McpError::invalid_params(
-                        "task result is not ready; call tasks/get until the task reaches a terminal state",
-                        None,
-                    ))
-                } else {
-                    Ok(GetTaskPayloadResult::new(
-                        snapshot.tool_result.unwrap_or_else(|| {
-                            serialize_call_tool_result(&CallToolResult::structured(
-                                snapshot.response.unwrap_or_else(|| {
-                                    json!({
-                                        "ok": false,
-                                        "error": {
-                                            "error": "task result unavailable",
-                                            "code": "TASK_RESULT_UNAVAILABLE",
-                                            "reason": "task_result_unavailable",
-                                        },
-                                        "meta": {
-                                            "elapsed_ms": 0
-                                        }
-                                    })
-                                }),
-                            ))
-                        }),
-                    ))
-                }
-            }
-            None => Err(crate::McpError::invalid_params("task not found", None)),
-        })
+    ) -> impl Future<Output = Result<(), rmcp::ErrorData>> + Send + '_ {
+        std::future::ready(
+            self.protocol_tasks
+                .update_task_for_principal(
+                    &Self::stdio_task_principal(),
+                    &request.task_id,
+                    request.input_responses,
+                )
+                .map_err(Self::task_authority_error),
+        )
     }
 
     fn cancel_task(
         &self,
         request: CancelTaskParams,
         _context: RequestContext<RoleServer>,
-    ) -> impl Future<Output = Result<CancelTaskResult, rmcp::ErrorData>> + Send + '_ {
-        std::future::ready(match self.query_jobs.get(&request.task_id) {
-            Some(job) => {
-                let snapshot = job.snapshot();
-                if !snapshot.task_managed {
-                    Err(crate::McpError::invalid_params("task not found", None))
-                } else {
-                    let snapshot = job.cancel(self.startup_role);
-                    Ok(CancelTaskResult {
-                        meta: None,
-                        task: self.task_for_snapshot(&snapshot),
-                    })
-                }
-            }
-            None => Err(crate::McpError::invalid_params("task not found", None)),
-        })
+    ) -> impl Future<Output = Result<(), rmcp::ErrorData>> + Send + '_ {
+        std::future::ready(self.cancel_protocol_task(&request.task_id))
     }
 
     fn call_tool(
+        &self,
+        request: CallToolRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<CallToolResponse, rmcp::ErrorData>> + Send + '_ {
+        let allow_task = Self::task_enabled_tool(&request.name)
+            && context
+                .client_capabilities()
+                .is_some_and(|caps| caps.supports_tasks());
+        let server = self.clone();
+        async move {
+            let operation = async move { server.execute_tool(request, context).await };
+            self.complete_or_promote_task(allow_task, operation).await
+        }
+    }
+}
+
+impl PostgresMcp {
+    // Each stdio server owns its authority; this fixed local principal is never
+    // used by the HTTP profile. Toolkit bounds retained records and delegates
+    // lifecycle, results, cancellation, and creation-based TTL to native RMCP.
+    fn new_protocol_task_authority(max_entries: usize) -> TaskAuthority {
+        let limit = NonZeroUsize::new(max_entries.max(1)).expect("positive task limit");
+        TaskAuthority::new(TaskAuthorityConfig {
+            max_retained_tasks: limit,
+            max_waiters: limit,
+            fallback_reads_per_second: limit,
+        })
+    }
+
+    fn stdio_task_principal() -> TaskPrincipal {
+        TaskPrincipal::new("stdio").expect("static local principal")
+    }
+
+    fn task_authority_error(error: TaskAuthorityError) -> rmcp::ErrorData {
+        match error {
+            TaskAuthorityError::TaskNotFound => {
+                crate::McpError::invalid_params("task not found", None)
+            }
+            TaskAuthorityError::Rmcp(error) => error,
+            other => crate::McpError::internal_error(other.to_string(), None),
+        }
+    }
+
+    fn protocol_task(&self, task_id: &str) -> Result<rmcp::model::DetailedTask, rmcp::ErrorData> {
+        self.protocol_tasks
+            .get_task_for_principal(&Self::stdio_task_principal(), task_id)
+            .map(|snapshot| snapshot.task)
+            .map_err(Self::task_authority_error)
+    }
+
+    fn cancel_protocol_task(&self, task_id: &str) -> Result<(), rmcp::ErrorData> {
+        self.protocol_tasks
+            .cancel_task_for_principal(&Self::stdio_task_principal(), task_id)
+            .map_err(Self::task_authority_error)
+    }
+
+    /// Preserve synchronous results unless a task-capable caller's eligible
+    /// operation outlives the short response window. RMCP owns task lifecycle.
+    async fn complete_or_promote_task<F>(
+        &self,
+        allow_task: bool,
+        operation: F,
+    ) -> Result<CallToolResponse, rmcp::ErrorData>
+    where
+        F: Future<Output = Result<CallToolResult, rmcp::ErrorData>> + Send + 'static,
+    {
+        if !allow_task {
+            return operation.await.map(Into::into);
+        }
+        let mut operation = Box::pin(operation);
+        if let Ok(result) = tokio::time::timeout(Duration::from_secs(1), &mut operation).await {
+            return result.map(Into::into);
+        }
+        let task = self
+            .protocol_tasks
+            .spawn_for_principal(
+                Self::stdio_task_principal(),
+                TaskOptions::new()
+                    .with_ttl_ms(
+                        self.query_jobs
+                            .terminal_ttl
+                            .as_millis()
+                            .min(u64::MAX as u128) as u64,
+                    )
+                    .with_poll_interval_ms(1000),
+                move |context| {
+                    Box::pin(async move {
+                        tokio::select! {
+                            biased;
+                            _ = context.cancelled() => Err(TaskExit::Cancelled),
+                            result = operation => result.map_err(TaskExit::Error),
+                        }
+                    })
+                },
+            )
+            .map_err(Self::task_authority_error)?;
+        Ok(CallToolResponse::Task(CreateTaskResult::new(task)))
+    }
+
+    fn execute_tool(
         &self,
         request: CallToolRequestParams,
         context: RequestContext<RoleServer>,
@@ -1851,7 +1731,17 @@ impl ServerHandler for PostgresMcp {
                 "executing",
             )
             .await;
-            let result = self.tool_router.call(tool_context).await;
+            let result = self
+                .tool_router
+                .call(tool_context)
+                .await
+                .and_then(|response| match response {
+                    CallToolResponse::Complete(result) => Ok(result),
+                    _ => Err(crate::McpError::internal_error(
+                        "unexpected tool response type",
+                        None,
+                    )),
+                });
             let outcome = Self::classify_outcome(&tool_name, &result);
             self.record_tool_outcome(&tool_name, outcome);
             Self::emit_progress(
@@ -2260,7 +2150,7 @@ mod tests {
         ResponseOutputMode, StartupRole,
     };
     use crate::db::DbEngine;
-    use rmcp::model::{CallToolResult, ResourceContents, Tool};
+    use rmcp::model::{CallToolResponse, CallToolResult, GetTaskResult, ResourceContents, Tool};
     use serde_json::{Value, json};
     use std::sync::Arc;
     use std::time::Duration;
@@ -2276,6 +2166,121 @@ mod tests {
             Value::Array(values) => values.iter().any(contains_nullable_key),
             _ => false,
         }
+    }
+
+    #[tokio::test]
+    async fn protocol_task_capacity_includes_retained_terminal_records() {
+        let mut server = test_server();
+        server.protocol_tasks = PostgresMcp::new_protocol_task_authority(1);
+        let first = server
+            .protocol_tasks
+            .spawn_for_principal(
+                PostgresMcp::stdio_task_principal(),
+                rmcp::task_manager::TaskOptions::default(),
+                |_| Box::pin(async { Ok(CallToolResult::structured(json!({"ok": true}))) }),
+            )
+            .unwrap();
+        tokio::task::yield_now().await;
+        assert_eq!(
+            server.protocol_task(&first.task_id).unwrap().status(),
+            rmcp::model::TaskStatus::Completed
+        );
+        let second = server.protocol_tasks.spawn_for_principal(
+            PostgresMcp::stdio_task_principal(),
+            rmcp::task_manager::TaskOptions::default(),
+            |_| Box::pin(async { Ok(CallToolResult::structured(json!({"ok": true}))) }),
+        );
+        assert!(matches!(
+            second,
+            Err(mcp_toolkit_tasks::TaskAuthorityError::CapacityReached)
+        ));
+        assert!(server.protocol_task(&first.task_id).is_ok());
+    }
+
+    #[tokio::test]
+    async fn protocol_task_fast_results_stay_synchronous() {
+        let server = test_server();
+        let response = server
+            .complete_or_promote_task(true, async {
+                Ok(CallToolResult::structured(json!({"ok": true})))
+            })
+            .await
+            .expect("fast result");
+        assert!(matches!(response, CallToolResponse::Complete(_)));
+    }
+
+    #[tokio::test]
+    async fn protocol_task_requires_client_support_even_for_slow_results() {
+        let server = test_server();
+        let response = server
+            .complete_or_promote_task(false, async {
+                tokio::time::sleep(Duration::from_millis(1100)).await;
+                Ok(CallToolResult::structured(json!({"ok": true})))
+            })
+            .await
+            .expect("ordinary result");
+        assert!(matches!(response, CallToolResponse::Complete(_)));
+    }
+
+    #[tokio::test]
+    async fn protocol_task_promotes_slow_work_and_returns_native_result() {
+        let server = test_server();
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let response = server
+            .complete_or_promote_task(true, async move {
+                receiver.await.expect("release operation");
+                Ok(CallToolResult::structured(
+                    json!({"ok": true, "answer": 42}),
+                ))
+            })
+            .await
+            .expect("task handle");
+        let CallToolResponse::Task(created) = response else {
+            panic!("expected task");
+        };
+        assert_eq!(
+            server
+                .protocol_task(&created.task.task_id)
+                .unwrap()
+                .status(),
+            rmcp::model::TaskStatus::Working
+        );
+        sender.send(()).unwrap();
+        tokio::task::yield_now().await;
+        let detailed = server.protocol_task(&created.task.task_id).unwrap();
+        let rmcp::model::TaskPayload::Completed { result } = detailed.payload else {
+            panic!("completed payload");
+        };
+        assert_eq!(result["structuredContent"]["answer"], 42);
+        let wire = serde_json::to_value(GetTaskResult::new(
+            server.protocol_task(&created.task.task_id).unwrap(),
+        ))
+        .unwrap();
+        assert_eq!(wire["resultType"], "complete");
+        assert_eq!(wire["status"], "completed");
+        assert_eq!(wire["result"]["structuredContent"]["answer"], 42);
+        assert!(wire.get("task").is_none());
+    }
+
+    #[tokio::test]
+    async fn protocol_task_native_cancellation_stops_pending_operation() {
+        let server = test_server();
+        let response = server
+            .complete_or_promote_task(true, std::future::pending())
+            .await
+            .unwrap();
+        let CallToolResponse::Task(created) = response else {
+            panic!("expected task");
+        };
+        server.cancel_protocol_task(&created.task.task_id).unwrap();
+        tokio::task::yield_now().await;
+        assert_eq!(
+            server
+                .protocol_task(&created.task.task_id)
+                .unwrap()
+                .status(),
+            rmcp::model::TaskStatus::Cancelled
+        );
     }
 
     #[test]

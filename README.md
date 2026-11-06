@@ -1,6 +1,6 @@
 # postgres-mcp
 
-`postgres-mcp` is a Rust stdio Model Context Protocol server for PostgreSQL.
+`postgres-mcp` is a Rust Model Context Protocol server for PostgreSQL.
 It is designed for low-latency agent workflows, practical compatibility with
 the Python `postgres-mcp` tool surface, and safe defaults around database
 connectivity and SQL execution.
@@ -11,7 +11,7 @@ validated on first use unless a stricter startup mode is configured.
 
 ## Highlights
 
-- Stdio transport only; no HTTP listener is exposed.
+- Stdio by default, plus opt-in OAuth-protected Streamable HTTP for remote read-only queries.
 - Lazy DB startup by default for spawn-per-request clients.
 - Schema discovery, read-query, render, export, health, and advisor tools.
 - Compatibility SQL surfaces remain available where needed.
@@ -23,11 +23,10 @@ validated on first use unless a stricter startup mode is configured.
 
 ## Quick Start
 
-Install Rust, make sure any companion toolkit crates required by `Cargo.toml`
-are available at their configured local paths, then build:
+Install Rust 1.99.1 or newer, then build with the committed dependency lockfile:
 
 ```bash
-cargo build
+cargo build --locked
 ```
 
 Run over stdio with a local development database:
@@ -46,6 +45,24 @@ DATABASE_URI='postgresql://user:pass@db.example.com:5432/app?sslmode=verify-full
 
 See [Getting Started](docs/GETTING_STARTED.md) for client configuration,
 startup modes, and smoke checks.
+
+## Remote ChatGPT access
+
+Use the separately bounded HTTP profile for OAuth-authenticated remote `query`
+and `schema` tools. It requires a fixed least-privilege database role, verified
+database TLS and a trusted local HTTPS reverse proxy. See [Remote HTTPS](docs/http.md)
+for setup, security boundaries and real-ChatGPT acceptance steps. No deployment
+or actual ChatGPT connection is implied by installing this code.
+
+### Current protocol migration
+
+The server uses an immutable hardened RMCP 3.9 / Toolkit baseline. Stdio tool
+arguments remain stable. Native current-protocol Tasks replace the older task
+augmentation format: `tasks/get` embeds terminal results; `tasks/list`,
+`tasks/result` and the former request `task` field are no longer supported.
+Eligible slow stdio calls from task-capable clients may be promoted after a
+short synchronous wait. Fast calls and legacy application query-job tools keep
+their ordinary result shape. HTTP does not advertise Tasks.
 
 ## Documentation
 

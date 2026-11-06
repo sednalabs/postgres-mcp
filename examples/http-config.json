@@ -1,0 +1,15 @@
+{
+  "bind": "127.0.0.1:8080",
+  "resource_url": "https://postgres.example.com/mcp",
+  "issuer": "https://identity.example.com/realms/example",
+  "allowed_hosts": ["postgres.example.com"],
+  "allowed_origins": ["https://chatgpt.com"],
+  "allowed_client_ids": ["replace-with-approved-oauth-client-id"],
+  "allowed_subjects": ["replace-with-approved-subject-id"],
+  "expected_database_role": "mcp_reader",
+  "limits": {
+    "max_requests": 16,
+    "max_legacy_sessions": 64,
+    "max_request_bytes": 32768
+  }
+}

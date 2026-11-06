@@ -16,6 +16,8 @@
 pub mod advisor_extension;
 pub mod config;
 pub mod db;
+pub mod http;
+pub mod remote;
 pub mod server;
 pub mod sql_safety;
 pub mod startup_coordination;

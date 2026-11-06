@@ -17,7 +17,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use regex::Regex;
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
-use rmcp::model::{CallToolResult, Content};
+use rmcp::model::{CallToolResult, ContentBlock};
 use rmcp::tool;
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -2263,7 +2263,7 @@ fn query_success(
         &query_hints,
     );
     if emit_markdown_text && !summary_only {
-        result.content = vec![Content::text(render_query_output_markdown(
+        result.content = vec![ContentBlock::text(render_query_output_markdown(
             &clipped_output,
             resolved_output_mode,
         ))];
@@ -4283,7 +4283,7 @@ mod tests {
         let text = result
             .content
             .first()
-            .and_then(|content| content.raw.as_text())
+            .and_then(|content| content.as_text())
             .map(|text| text.text.as_str())
             .expect("query_success should emit text content");
         assert!(text.contains("| id | name |"));

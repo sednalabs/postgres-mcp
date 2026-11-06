@@ -20,7 +20,7 @@ use rmcp::transport::stdio;
 use serde_json::json;
 use tracing_subscriber::EnvFilter;
 
-use postgres_mcp::config::{Cli, Settings, StartupDbConnectMode, StartupRole};
+use postgres_mcp::config::{Cli, Settings, StartupDbConnectMode, StartupRole, Transport};
 use postgres_mcp::db::DbEngine;
 use postgres_mcp::server::PostgresMcp;
 use postgres_mcp::startup_coordination::StartupCoordinationConfig;
@@ -42,6 +42,14 @@ async fn run() -> Result<()> {
 
     let cli = Cli::parse();
     let settings = Settings::from_cli(cli)?;
+    if settings.transport == Transport::Http {
+        return postgres_mcp::http::serve(settings)
+            .await
+            .map_err(anyhow::Error::msg);
+    }
+    if settings.http_config.is_some() {
+        return Err(anyhow!("--http-config requires --transport http"));
+    }
     let startup_coordination = StartupCoordinationConfig::from_env(settings.startup_role)?;
     let startup_dependencies = StartupDependencyConfig::from_env(settings.startup_role)?;
 

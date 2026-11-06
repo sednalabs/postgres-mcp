@@ -6,7 +6,7 @@ use std::time::Duration;
 use anyhow::{Context, Result, anyhow};
 use clap::Parser;
 use mcp_toolkit_policy_runtime::CapabilityRefreshState;
-use mcp_toolkit_postgres::{PgConnectionConfig, PgInsecureTlsPolicy};
+use mcp_toolkit_postgres::PgConnectionConfig;
 use postgres_mcp::config::AccessMode;
 use postgres_mcp::db::{DbEngine, QueryOutput};
 use postgres_mcp::server::{ExtensionCapability, ExtensionUnavailableCache, PostgresMcp};
@@ -459,7 +459,7 @@ async fn check_lock_timeout_enforced(database_uri: &str) -> CheckResult {
     };
 
     let (holder_client, holder_driver) = match connect
-        .connect_with_policy(PgInsecureTlsPolicy::AllowRequireOnly)
+        .connect_with_policy(postgres_mcp::db::stdio_tls_policy(connect.tls_mode(), true))
         .await
     {
         Ok(pair) => pair,

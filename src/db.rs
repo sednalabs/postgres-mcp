@@ -440,6 +440,19 @@ impl fmt::Display for DbError {
 
 impl StdError for DbError {}
 
+/// Preserve stdio's explicit/default plaintext connections after parsing the DSN.
+///
+/// The broad toolkit policy is selected only for exact `Disable`; this adapter
+/// never authorizes opportunistic TLS fallback (`Prefer`). HTTP must not use it:
+/// remote connections require verified TLS and `DisallowAll` instead.
+pub fn stdio_tls_policy(mode: PgTlsMode, allow_insecure_tls: bool) -> PgInsecureTlsPolicy {
+    match mode {
+        PgTlsMode::Disable => PgInsecureTlsPolicy::AllowRequireAndPrefer,
+        PgTlsMode::InsecureRequire if allow_insecure_tls => PgInsecureTlsPolicy::AllowRequireOnly,
+        _ => PgInsecureTlsPolicy::DisallowAll,
+    }
+}
+
 impl DbEngine {
     pub fn new(
         database_url: Option<String>,
@@ -459,6 +472,78 @@ impl DbEngine {
                 lock_timeout,
             },
         }
+    }
+
+    /// HTTP-only primitive: fresh connection, verified unprivileged role, fixed bounds.
+    /// SQL and parameters must already pass the remote profile's input validation.
+    pub(crate) async fn execute_remote_read(
+        &self,
+        sql: &str,
+        params: &[Value],
+        expected_role: &str,
+    ) -> DbResult<Value> {
+        use crate::remote::{MAX_COLUMNS, MAX_ROW_BYTES, MAX_ROWS};
+        let bound = parse_bound_query_params(params)?;
+        let config = PgConnectionConfig::from_dsn(
+            self.database_url
+                .as_deref()
+                .ok_or_else(DbError::database_uri_missing)?,
+        )
+        .map_err(|err| DbError::connect_transport_failed(&err))?;
+        // Unlike stdio, HTTP never opts into insecure TLS modes.
+        let (client, connection) = config
+            .connect_with_policy(PgInsecureTlsPolicy::DisallowAll)
+            .await
+            .map_err(|err| DbError::connect_transport_failed(&err))?;
+        client.batch_execute("BEGIN READ ONLY; SET LOCAL statement_timeout = '5s'; SET LOCAL lock_timeout = '1s'; SET LOCAL idle_in_transaction_session_timeout = '8s'; SET LOCAL search_path = pg_catalog, public")
+            .await.map_err(|err| DbError::query_failed(&err))?;
+        let identity = client.query_one(
+            "SELECT current_user::text, session_user::text, r.rolsuper OR r.rolbypassrls OR r.rolcreatedb OR r.rolcreaterole OR r.rolreplication OR EXISTS (SELECT 1 FROM pg_catalog.pg_auth_members m WHERE m.member = r.oid) FROM pg_catalog.pg_roles r WHERE r.rolname = current_user",
+            &[],
+        ).await.map_err(|err| DbError::query_failed(&err))?;
+        if identity.get::<_, String>(0) != expected_role
+            || identity.get::<_, String>(1) != expected_role
+            || identity.get::<_, bool>(2)
+        {
+            return Err(DbError::sql_input_invalid("remote database role rejected"));
+        }
+        let budget = QueryBudget {
+            request_timeout: Some(Duration::from_secs(5)),
+            statement_timeout: None,
+            lock_timeout: None,
+        };
+        let statement = prepare_typed_statement(&client, sql, &bound, budget).await?;
+        let columns = QueryColumn::from_typed_columns(statement.columns());
+        if columns.is_empty() || columns.len() > MAX_COLUMNS {
+            return Err(DbError::sql_input_invalid("remote column budget exceeded"));
+        }
+        let wrapped = wrap_query_for_json_rows(sql, &columns)
+            .ok_or_else(|| DbError::sql_input_invalid("remote query shape rejected"))?;
+        // Cap wire data before tokio-postgres materializes any rows. Nested JSON,
+        // arrays, bytea and very large text receive exactly the same bound.
+        let bounded = format!(
+            "SELECT CASE WHEN octet_length(__row_json::text) <= {MAX_ROW_BYTES} THEN __row_json::text ELSE NULL END FROM ({wrapped}) AS remote_rows LIMIT {}",
+            MAX_ROWS + 1,
+        );
+        let statement = prepare_typed_statement(&client, &bounded, &bound, budget).await?;
+        let refs = bound_param_refs(&bound);
+        let rows = client
+            .query(&statement, &refs)
+            .await
+            .map_err(|err| DbError::query_failed(&err))?;
+        let wire_rows: Vec<Option<String>> = rows.iter().map(|row| row.get(0)).collect();
+        let output = crate::remote::bound_output(&columns, wire_rows)
+            .map_err(|_| DbError::sql_input_invalid("remote output budget exceeded"))?;
+        client
+            .batch_execute("ROLLBACK")
+            .await
+            .map_err(|err| DbError::query_failed(&err))?;
+        drop(client);
+        connection
+            .wait()
+            .await
+            .map_err(|err| DbError::connection_driver_failed(&err))?;
+        Ok(output)
     }
 
     pub async fn startup_connect_probe(&self, timeout: Option<Duration>) -> DbResult<()> {
@@ -578,11 +663,7 @@ impl DbEngine {
                  Prefer sslmode=verify-full (or verify-ca) with trusted roots."
             );
         }
-        let insecure_policy = if self.allow_insecure_tls {
-            PgInsecureTlsPolicy::AllowRequireOnly
-        } else {
-            PgInsecureTlsPolicy::DisallowAll
-        };
+        let insecure_policy = stdio_tls_policy(connect.tls_mode(), self.allow_insecure_tls);
 
         let (client, connection) = connect
             .connect_with_policy(insecure_policy)
@@ -649,11 +730,7 @@ impl DbEngine {
                  Prefer sslmode=verify-full (or verify-ca) with trusted roots."
             );
         }
-        let insecure_policy = if self.allow_insecure_tls {
-            PgInsecureTlsPolicy::AllowRequireOnly
-        } else {
-            PgInsecureTlsPolicy::DisallowAll
-        };
+        let insecure_policy = stdio_tls_policy(connect.tls_mode(), self.allow_insecure_tls);
 
         let (client, connection) = connect
             .connect_with_policy(insecure_policy)
@@ -763,11 +840,7 @@ impl DbEngine {
                  Prefer sslmode=verify-full (or verify-ca) with trusted roots."
             );
         }
-        let insecure_policy = if self.allow_insecure_tls {
-            PgInsecureTlsPolicy::AllowRequireOnly
-        } else {
-            PgInsecureTlsPolicy::DisallowAll
-        };
+        let insecure_policy = stdio_tls_policy(connect.tls_mode(), self.allow_insecure_tls);
 
         let (client, connection) = connect
             .connect_with_policy(insecure_policy)
@@ -821,11 +894,7 @@ impl DbEngine {
                  Prefer sslmode=verify-full (or verify-ca) with trusted roots."
             );
         }
-        let insecure_policy = if self.allow_insecure_tls {
-            PgInsecureTlsPolicy::AllowRequireOnly
-        } else {
-            PgInsecureTlsPolicy::DisallowAll
-        };
+        let insecure_policy = stdio_tls_policy(connect.tls_mode(), self.allow_insecure_tls);
 
         let (client, connection) = connect
             .connect_with_policy(insecure_policy)
@@ -2293,6 +2362,58 @@ mod tests {
     use std::time::Duration;
     use std::time::{SystemTime, UNIX_EPOCH};
     use tokio_postgres::SimpleQueryMessage;
+
+    #[test]
+    fn stdio_tls_policy_preserves_plaintext_and_verified_modes() {
+        for dsn in [
+            "postgresql://localhost/example",
+            "postgresql://localhost/example?sslmode=disable",
+            "host=localhost dbname=example",
+            "host=localhost dbname=example sslmode=disable",
+            "postgresql://localhost/example?sslmode=verify-full",
+            "host=localhost dbname=example sslmode=verify-ca",
+        ] {
+            let config = super::PgConnectionConfig::from_dsn(dsn).unwrap();
+            for allow in [false, true] {
+                config
+                    .validate_tls_policy(super::stdio_tls_policy(config.tls_mode(), allow))
+                    .expect("stdio local/plaintext and verified modes remain usable");
+            }
+        }
+    }
+
+    #[test]
+    fn stdio_tls_policy_requires_explicit_require_override_and_never_prefer() {
+        for mode in ["require", "prefer"] {
+            for dsn in [
+                format!("postgresql://localhost/example?sslmode={mode}"),
+                format!("host=localhost dbname=example sslmode={mode}"),
+            ] {
+                let config = super::PgConnectionConfig::from_dsn(&dsn).unwrap();
+                for allow in [false, true] {
+                    let permitted = config
+                        .validate_tls_policy(super::stdio_tls_policy(config.tls_mode(), allow))
+                        .is_ok();
+                    assert_eq!(permitted, mode == "require" && allow);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn remote_tls_policy_still_rejects_all_unverified_modes() {
+        for mode in ["disable", "require", "prefer"] {
+            let config = super::PgConnectionConfig::from_dsn(&format!(
+                "postgresql://localhost/example?sslmode={mode}"
+            ))
+            .unwrap();
+            assert!(
+                config
+                    .validate_tls_policy(super::PgInsecureTlsPolicy::DisallowAll)
+                    .is_err()
+            );
+        }
+    }
 
     fn default_query_budget() -> (Option<Duration>, Option<Duration>, Option<Duration>) {
         (

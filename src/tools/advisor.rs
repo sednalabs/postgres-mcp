@@ -47,7 +47,6 @@ impl PostgresMcp {
     #[tool(
         name = "analyze_workload_indexes",
         description = "Analyze frequently executed queries in the database and recommend optimal indexes",
-        execution(task_support = "optional"),
         output_schema = rmcp::handler::server::tool::schema_for_type::<StructuredObjectToolResultSchema>()
     )]
     async fn analyze_workload_indexes(
@@ -181,7 +180,6 @@ impl PostgresMcp {
     #[tool(
         name = "analyze_query_indexes",
         description = "Analyze a list of (up to 10) SQL queries and recommend optimal indexes",
-        execution(task_support = "optional"),
         output_schema = rmcp::handler::server::tool::schema_for_type::<StructuredObjectToolResultSchema>()
     )]
     async fn analyze_query_indexes(

@@ -962,7 +962,6 @@ impl PostgresMcp {
     #[tool(
         name = "query_sql",
         description = "Run a structured read query and return row objects",
-        execution(task_support = "optional"),
         output_schema = rmcp::handler::server::tool::schema_for_type::<StructuredRowsToolResultSchema>()
     )]
     async fn query_sql(
@@ -1031,7 +1030,6 @@ impl PostgresMcp {
     #[tool(
         name = "query_tuples",
         description = "Run a structured read query and return columns plus tuple rows",
-        execution(task_support = "optional"),
         output_schema = rmcp::handler::server::tool::schema_for_type::<StructuredTableToolResultSchema>()
     )]
     async fn query_tuples(
@@ -1092,7 +1090,6 @@ impl PostgresMcp {
     #[tool(
         name = "export_sql",
         description = "Run a read query, export the full result, and return an artifact handle",
-        execution(task_support = "optional"),
         output_schema = rmcp::handler::server::tool::schema_for_type::<StructuredObjectToolResultSchema>()
     )]
     async fn export_sql(
@@ -1104,8 +1101,7 @@ impl PostgresMcp {
 
     #[tool(
         name = "render_sql",
-        description = "Run a read query and return markdown for agent/operator inspection",
-        execution(task_support = "optional")
+        description = "Run a read query and return markdown for agent/operator inspection"
     )]
     async fn render_sql(
         &self,
@@ -1185,7 +1181,7 @@ impl PostgresMcp {
         }
         let mut tool_result = tool_success(self, Value::Null, result.elapsed_ms);
         tool_result.structured_content = None;
-        tool_result.content = vec![Content::text(lines.join("\n"))];
+        tool_result.content = vec![ContentBlock::text(lines.join("\n"))];
         Ok(tool_result)
     }
 
@@ -1309,7 +1305,7 @@ impl PostgresMcp {
 
     #[tool(
         name = "query_job_start",
-        description = "Launch a long-running structured read query job (deprecated: use query_sql with task augmentation)",
+        description = "Launch a long-running structured read query job for clients that need explicit job control",
         output_schema = rmcp::handler::server::tool::schema_for_type::<StructuredObjectToolResultSchema>()
     )]
     async fn query_job_start(
@@ -1400,7 +1396,7 @@ impl PostgresMcp {
 
     #[tool(
         name = "export_job_start",
-        description = "Launch a full-result export job and return an artifact handle when complete (deprecated: use export_sql with task augmentation)",
+        description = "Launch a full-result export job and return an artifact handle when complete",
         output_schema = rmcp::handler::server::tool::schema_for_type::<StructuredObjectToolResultSchema>()
     )]
     async fn export_job_start(
@@ -1479,7 +1475,7 @@ impl PostgresMcp {
 
     #[tool(
         name = "job_status",
-        description = "Read generic job status and optionally wait or include the terminal result (deprecated: use MCP tasks/get and tasks/result)",
+        description = "Read generic job status and optionally wait or include the terminal result",
         output_schema = rmcp::handler::server::tool::schema_for_type::<StructuredObjectToolResultSchema>()
     )]
     async fn job_status(
@@ -1562,7 +1558,7 @@ impl PostgresMcp {
 
     #[tool(
         name = "job_cancel",
-        description = "Cancel a running query or export job (deprecated: use MCP tasks/cancel)",
+        description = "Cancel a running query or export job",
         output_schema = rmcp::handler::server::tool::schema_for_type::<StructuredObjectToolResultSchema>()
     )]
     async fn job_cancel(
