@@ -23,11 +23,11 @@ time = { version = "0.3.49", features = ["formatting"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "fmt"] }
 
-mcp-toolkit-observability = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "3ade735cf993892dd5f6c6808b0e5ad473e83dc2", package = "mcp-toolkit-observability", features = ["tracing-bridge"] }
-mcp-toolkit-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "3ade735cf993892dd5f6c6808b0e5ad473e83dc2", package = "mcp-toolkit-core" }
-mcp-toolkit-postgres = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "3ade735cf993892dd5f6c6808b0e5ad473e83dc2", package = "mcp-toolkit-postgres" }
-mcp-toolkit-policy-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "3ade735cf993892dd5f6c6808b0e5ad473e83dc2", package = "mcp-toolkit-policy-core" }
-mcp-toolkit-policy-runtime = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "3ade735cf993892dd5f6c6808b0e5ad473e83dc2", package = "mcp-toolkit-policy-runtime" }
+mcp-toolkit-observability = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", package = "mcp-toolkit-observability", features = ["tracing-bridge"] }
+mcp-toolkit-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", package = "mcp-toolkit-core" }
+mcp-toolkit-postgres = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", package = "mcp-toolkit-postgres" }
+mcp-toolkit-policy-core = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", package = "mcp-toolkit-policy-core" }
+mcp-toolkit-policy-runtime = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", package = "mcp-toolkit-policy-runtime" }
 
 axum = "0.8.8"
 http = "1.3.1"
@@ -37,10 +37,10 @@ bytes = "1.10.1"
 tokio-util = "0.7.17"
 url = "2.5.4"
 futures-util = "0.3.31"
-mcp-toolkit-server = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "3ade735cf993892dd5f6c6808b0e5ad473e83dc2", features = ["http", "auth"] }
-mcp-toolkit-tasks = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "3ade735cf993892dd5f6c6808b0e5ad473e83dc2" }
-mcp-toolkit-http = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "3ade735cf993892dd5f6c6808b0e5ad473e83dc2", features = ["session"] }
-mcp-toolkit-auth = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "3ade735cf993892dd5f6c6808b0e5ad473e83dc2" }
+mcp-toolkit-server = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", features = ["http", "auth"] }
+mcp-toolkit-tasks = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4" }
+mcp-toolkit-http = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", features = ["session"] }
+mcp-toolkit-auth = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4" }
 
 # Root patches are required: dependency workspace patches do not propagate.
 # These immutable SDK revisions include verified Streamable HTTP hardening.
@@ -49,7 +49,7 @@ rmcp = { git = "https://github.com/sednalabs/rust-sdk", rev = "31e83f4f752001d2a
 rmcp-macros = { git = "https://github.com/sednalabs/rust-sdk", rev = "31e83f4f752001d2afc386254a4d17b5eab5f419" }
 
 [dev-dependencies]
-mcp-toolkit-testing = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "3ade735cf993892dd5f6c6808b0e5ad473e83dc2", package = "mcp-toolkit-testing" }
+mcp-toolkit-testing = { git = "https://github.com/sednalabs/mcp-toolkit-rs", rev = "c913057199da7814419835e9c8077ea5eeedf5c4", package = "mcp-toolkit-testing" }
 jsonwebtoken = { version = "11", features = ["aws_lc_rs"] }
 base64 = "0.23.1"
 tower = { version = "0.5", features = ["util"] }

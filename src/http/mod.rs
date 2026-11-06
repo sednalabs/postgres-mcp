@@ -221,6 +221,10 @@ fn build_router(
     stop: CancellationToken,
 ) -> (Router, Arc<LegacyCustody>) {
     let runtime = LocalMcpHttpRuntimeBuilder::new()
+        .server_config(
+            rmcp::transport::streamable_http_server::StreamableHttpServerConfig::default()
+                .with_json_response(true),
+        )
         .allowed_hosts(config.allowed_hosts.clone())
         .allowed_origins(config.allowed_origins.clone())
         .max_sessions(config.limits.max_legacy_sessions)
@@ -244,6 +248,9 @@ fn build_router(
     let router = LocalMcpHttpRouterBuilder::new(runtime.into_state(true))
         .include_health(false)
         .build()
+        .layer(middleware::from_fn(
+            mcp_toolkit_server::apps_http::mirror_apps_tool_security_schemes,
+        ))
         .route(
             "/healthz",
             axum::routing::get(|| async { StatusCode::NO_CONTENT }),

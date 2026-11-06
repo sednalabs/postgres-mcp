@@ -113,6 +113,12 @@ reachable; database validation is lazy and repeated per call.
 
 ## Tools and bounds
 
+Current-protocol terminal responses use the SDK's JSON mode. The shared Toolkit
+Apps projection supplies OAuth schemes on both the tool descriptor and its
+`_meta` mirror for current discovery. Legacy SSE discovery carries the `_meta`
+compatibility schemes; streams are not buffered or rewritten. Record the actual
+ChatGPT negotiated protocol and successful discovery in the acceptance evidence.
+
 `query` accepts `{ "sql": "SELECT $1::text AS value", "params": ["example"] }`.
 Always supply `params`, even when empty. Parameters currently support strings,
 numbers and booleans; SQL results can contain null. The SQL subset is SELECT/WITH

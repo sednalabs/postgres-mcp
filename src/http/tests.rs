@@ -247,6 +247,11 @@ async fn authenticated_current_catalog_and_call_allowlist_match() {
     for tool in tools {
         assert_eq!(tool["annotations"]["readOnlyHint"], true);
         assert_eq!(tool["_meta"]["securitySchemes"][0]["type"], "oauth2");
+        assert_eq!(tool["securitySchemes"], tool["_meta"]["securitySchemes"]);
+        assert_eq!(
+            tool["securitySchemes"][0]["scopes"],
+            json!(["postgres:read"])
+        );
     }
     for name in [
         "admin_sql",
@@ -349,13 +354,12 @@ async fn legacy_sessions_are_principal_bound_and_current_requests_ignore_stale_i
         ))
         .await;
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(
-        payload(response).await["result"]["tools"]
-            .as_array()
-            .unwrap()
-            .len(),
-        2
-    );
+    let catalog = payload(response).await;
+    let tools = catalog["result"]["tools"].as_array().unwrap();
+    assert_eq!(tools.len(), 2);
+    for tool in tools {
+        assert_eq!(tool["_meta"]["securitySchemes"][0]["type"], "oauth2");
+    }
     let response = f.send(legacy("POST", &alice, json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query","arguments":{"sql":"DELETE FROM secret","params":[]}}}))).await;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(payload(response).await["result"]["isError"], true);

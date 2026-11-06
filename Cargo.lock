@@ -577,7 +577,7 @@ dependencies = [
 [[package]]
 name = "dpop-verifier"
 version = "4.4.1"
-source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=3ade735cf993892dd5f6c6808b0e5ad473e83dc2#3ade735cf993892dd5f6c6808b0e5ad473e83dc2"
+source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=c913057199da7814419835e9c8077ea5eeedf5c4#c913057199da7814419835e9c8077ea5eeedf5c4"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -1362,7 +1362,7 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 [[package]]
 name = "mcp-toolkit-auth"
 version = "0.1.0"
-source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=3ade735cf993892dd5f6c6808b0e5ad473e83dc2#3ade735cf993892dd5f6c6808b0e5ad473e83dc2"
+source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=c913057199da7814419835e9c8077ea5eeedf5c4#c913057199da7814419835e9c8077ea5eeedf5c4"
 dependencies = [
  "async-trait",
  "axum",
@@ -1393,7 +1393,7 @@ dependencies = [
 [[package]]
 name = "mcp-toolkit-core"
 version = "0.1.0"
-source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=3ade735cf993892dd5f6c6808b0e5ad473e83dc2#3ade735cf993892dd5f6c6808b0e5ad473e83dc2"
+source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=c913057199da7814419835e9c8077ea5eeedf5c4#c913057199da7814419835e9c8077ea5eeedf5c4"
 dependencies = [
  "rmcp",
  "serde",
@@ -1404,7 +1404,7 @@ dependencies = [
 [[package]]
 name = "mcp-toolkit-http"
 version = "0.1.0"
-source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=3ade735cf993892dd5f6c6808b0e5ad473e83dc2#3ade735cf993892dd5f6c6808b0e5ad473e83dc2"
+source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=c913057199da7814419835e9c8077ea5eeedf5c4#c913057199da7814419835e9c8077ea5eeedf5c4"
 dependencies = [
  "axum",
  "futures",
@@ -1421,7 +1421,7 @@ dependencies = [
 [[package]]
 name = "mcp-toolkit-observability"
 version = "0.1.0"
-source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=3ade735cf993892dd5f6c6808b0e5ad473e83dc2#3ade735cf993892dd5f6c6808b0e5ad473e83dc2"
+source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=c913057199da7814419835e9c8077ea5eeedf5c4#c913057199da7814419835e9c8077ea5eeedf5c4"
 dependencies = [
  "once_cell",
  "regex",
@@ -1434,7 +1434,7 @@ dependencies = [
 [[package]]
 name = "mcp-toolkit-policy-core"
 version = "0.1.0"
-source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=3ade735cf993892dd5f6c6808b0e5ad473e83dc2#3ade735cf993892dd5f6c6808b0e5ad473e83dc2"
+source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=c913057199da7814419835e9c8077ea5eeedf5c4#c913057199da7814419835e9c8077ea5eeedf5c4"
 dependencies = [
  "regex",
  "serde",
@@ -1444,7 +1444,7 @@ dependencies = [
 [[package]]
 name = "mcp-toolkit-policy-ffi"
 version = "0.1.0"
-source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=3ade735cf993892dd5f6c6808b0e5ad473e83dc2#3ade735cf993892dd5f6c6808b0e5ad473e83dc2"
+source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=c913057199da7814419835e9c8077ea5eeedf5c4#c913057199da7814419835e9c8077ea5eeedf5c4"
 dependencies = [
  "libloading",
  "mcp-toolkit-policy-core",
@@ -1456,7 +1456,7 @@ dependencies = [
 [[package]]
 name = "mcp-toolkit-policy-kernel-adapters"
 version = "0.1.0"
-source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=3ade735cf993892dd5f6c6808b0e5ad473e83dc2#3ade735cf993892dd5f6c6808b0e5ad473e83dc2"
+source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=c913057199da7814419835e9c8077ea5eeedf5c4#c913057199da7814419835e9c8077ea5eeedf5c4"
 dependencies = [
  "mcp-toolkit-policy-core",
  "serde",
@@ -1466,7 +1466,7 @@ dependencies = [
 [[package]]
 name = "mcp-toolkit-policy-runtime"
 version = "0.1.0"
-source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=3ade735cf993892dd5f6c6808b0e5ad473e83dc2#3ade735cf993892dd5f6c6808b0e5ad473e83dc2"
+source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=c913057199da7814419835e9c8077ea5eeedf5c4#c913057199da7814419835e9c8077ea5eeedf5c4"
 dependencies = [
  "mcp-toolkit-policy-core",
  "mcp-toolkit-policy-ffi",
@@ -1477,7 +1477,7 @@ dependencies = [
 [[package]]
 name = "mcp-toolkit-postgres"
 version = "0.1.0"
-source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=3ade735cf993892dd5f6c6808b0e5ad473e83dc2#3ade735cf993892dd5f6c6808b0e5ad473e83dc2"
+source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=c913057199da7814419835e9c8077ea5eeedf5c4#c913057199da7814419835e9c8077ea5eeedf5c4"
 dependencies = [
  "form_urlencoded",
  "rustls",
@@ -1490,7 +1490,7 @@ dependencies = [
 [[package]]
 name = "mcp-toolkit-server"
 version = "0.1.0"
-source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=3ade735cf993892dd5f6c6808b0e5ad473e83dc2#3ade735cf993892dd5f6c6808b0e5ad473e83dc2"
+source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=c913057199da7814419835e9c8077ea5eeedf5c4#c913057199da7814419835e9c8077ea5eeedf5c4"
 dependencies = [
  "axum",
  "getrandom 0.4.2",
@@ -1511,7 +1511,7 @@ dependencies = [
 [[package]]
 name = "mcp-toolkit-tasks"
 version = "0.1.0"
-source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=3ade735cf993892dd5f6c6808b0e5ad473e83dc2#3ade735cf993892dd5f6c6808b0e5ad473e83dc2"
+source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=c913057199da7814419835e9c8077ea5eeedf5c4#c913057199da7814419835e9c8077ea5eeedf5c4"
 dependencies = [
  "mcp-toolkit-observability",
  "rmcp",
@@ -1522,7 +1522,7 @@ dependencies = [
 [[package]]
 name = "mcp-toolkit-testing"
 version = "0.1.0"
-source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=3ade735cf993892dd5f6c6808b0e5ad473e83dc2#3ade735cf993892dd5f6c6808b0e5ad473e83dc2"
+source = "git+https://github.com/sednalabs/mcp-toolkit-rs?rev=c913057199da7814419835e9c8077ea5eeedf5c4#c913057199da7814419835e9c8077ea5eeedf5c4"
 dependencies = [
  "http",
  "mcp-toolkit-core",

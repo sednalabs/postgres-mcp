@@ -80,7 +80,7 @@ Exception requirements:
 ## Remote HTTP dependency review (2026-11-06)
 
 The HTTP migration uses toolkit commit
-[`3ade735cf993892dd5f6c6808b0e5ad473e83dc2`](https://github.com/sednalabs/mcp-toolkit-rs/commit/3ade735cf993892dd5f6c6808b0e5ad473e83dc2),
+[`c913057199da7814419835e9c8077ea5eeedf5c4`](https://github.com/sednalabs/mcp-toolkit-rs/commit/c913057199da7814419835e9c8077ea5eeedf5c4),
 the narrow PostgreSQL root-certificate correction in
 [toolkit PR #346](https://github.com/sednalabs/mcp-toolkit-rs/pull/346) based on
 previously qualified `58bb4d13e09752a30911ad62bf2c35b6a51bb7d1`,
